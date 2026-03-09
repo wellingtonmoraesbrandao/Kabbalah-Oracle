@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Epilogue:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Epilogue", sans-serif;
+  
+  --color-mystic-bg: #0a0614;
+  --color-mystic-card: #160f23;
+  --color-mystic-primary: #2c0085;
+  --color-mystic-gold: #d4af37;
+  --color-mystic-gold-light: #f59e0b;
+}
+
+@layer base {
+  body {
+    @apply bg-mystic-bg text-slate-100 font-sans antialiased;
+  }
+}
+
+.gold-glow {
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+.purple-glow {
+  box-shadow: 0 0 20px rgba(44, 0, 133, 0.3);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
