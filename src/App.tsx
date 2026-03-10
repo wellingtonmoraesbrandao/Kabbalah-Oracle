@@ -39,6 +39,10 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthScreen } from './components/AuthScreen';
 import { generatePdfCover } from './lib/pdfHelper';
 import * as pdfjsLib from 'pdfjs-dist';
+import { calculateDestinyNumber, getDestinyMeaning } from './lib/numerology';
+import { calculateZodiacSign } from './lib/zodiac';
+import { getMoonPhase } from './lib/moon';
+import { fetchLatestWeeklyArticle, generatePersonalInfluence, WeeklyArticle } from './services/articles';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -238,7 +242,9 @@ const HomeView = ({ setView, onOpenNotifications, user }: { setView: (v: View) =
           <h2 className="text-xl font-bold font-display line-clamp-1">{user?.user_metadata?.full_name || 'Buscador Solitário'}</h2>
           <div className="flex items-center gap-1.5 text-mystic-gold">
             <Sun size={14} />
-            <p className="text-xs font-semibold uppercase tracking-wider">Leão</p>
+            <p className="text-xs font-semibold uppercase tracking-wider">
+              {calculateZodiacSign(user?.user_metadata?.birth_date || "")}
+            </p>
           </div>
         </div>
       </button>
@@ -257,11 +263,17 @@ const HomeView = ({ setView, onOpenNotifications, user }: { setView: (v: View) =
       <div className="relative z-10">
         <p className="text-slate-300/60 text-xs font-medium uppercase tracking-[0.2em] mb-1">Energia de Hoje</p>
         <div className="flex items-baseline gap-3">
-          <h3 className="text-white text-5xl font-black font-display">7</h3>
-          <p className="text-mystic-gold text-xl font-semibold">(Introspecção)</p>
+          <h3 className="text-white text-5xl font-black font-display">
+            {calculateDestinyNumber(user?.user_metadata?.birth_date) || 7}
+          </h3>
+          <p className="text-mystic-gold text-xl font-semibold">
+            ({user?.user_metadata?.birth_date ? getDestinyMeaning(calculateDestinyNumber(user?.user_metadata?.birth_date)) : 'Introspecção'})
+          </p>
         </div>
         <p className="mt-4 text-white/80 text-sm max-w-[240px] leading-relaxed">
-          Um dia ideal para o autoconhecimento e a conexão profunda com sua sabedoria interior.
+          {user?.user_metadata?.birth_date
+            ? "Seu número de destino ilumina seu caminho com força e propósito."
+            : "Um dia ideal para o autoconhecimento e a conexão profunda com sua sabedoria interior."}
         </p>
       </div>
     </section>
@@ -296,9 +308,9 @@ const HomeView = ({ setView, onOpenNotifications, user }: { setView: (v: View) =
       <h2 className="text-xl font-bold font-display mb-4">Seus Números Core</h2>
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Destino', val: '8', icon: Compass },
-          { label: 'Alma', val: '5', icon: Heart },
-          { label: 'Missão', val: '11', icon: Zap },
+          { label: 'Destino', val: calculateDestinyNumber(user?.user_metadata?.birth_date) || '?', icon: Compass },
+          { label: 'Alma', val: user?.user_metadata?.birth_date ? (calculateDestinyNumber(user.user_metadata.birth_date) * 7) % 9 || 4 : '?', icon: Heart },
+          { label: 'Missão', val: user?.user_metadata?.birth_date ? (calculateDestinyNumber(user.user_metadata.birth_date) * 3) % 9 || 5 : '?', icon: Zap },
         ].map((n) => (
           <div key={n.label} className="flex flex-col items-center justify-center p-4 rounded-xl bg-mystic-primary/10 border border-mystic-primary/20">
             <n.icon size={20} className="text-mystic-gold mb-2" fill="currentColor" />
@@ -309,143 +321,182 @@ const HomeView = ({ setView, onOpenNotifications, user }: { setView: (v: View) =
       </div>
     </section>
 
-    <section className="flex items-center gap-4 p-4 rounded-2xl bg-white/5">
-      <div className="size-16 flex-shrink-0 bg-mystic-bg rounded-full flex items-center justify-center shadow-inner relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-tr from-mystic-primary/40 to-transparent"></div>
-        <Moon size={32} className="text-slate-100" />
-      </div>
-      <div>
-        <p className="text-xs text-slate-500 font-medium">Fase da Lua</p>
-        <h4 className="text-lg font-bold">Crescente</h4>
-        <p className="text-xs text-mystic-gold font-medium">Tempo de expansão e foco</p>
-      </div>
-    </section>
+    {(() => {
+      const moon = getMoonPhase();
+      return (
+        <section className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 shadow-inner">
+          <div className="size-16 flex-shrink-0 bg-mystic-bg rounded-full flex items-center justify-center shadow-inner relative overflow-hidden border border-mystic-primary/20">
+            <div className="absolute inset-0 bg-gradient-to-tr from-mystic-primary/40 to-transparent"></div>
+            <Moon size={32} className="text-slate-100 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" />
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-0.5">Fase da Lua</p>
+            <h4 className="text-xl font-black text-white">{moon.name}</h4>
+            <p className="text-xs text-mystic-gold font-medium italic">{moon.desc}</p>
+          </div>
+        </section>
+      );
+    })()}
   </motion.div>
 );
 
-const MapView = () => {
-  const [search, setSearch] = useState('');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+const MapView = ({ user }: { user: any }) => {
+  const birthDate = user?.user_metadata?.birth_date || "";
+
+  // Real calculations (as placeholder logic for consistency)
+  const d = calculateDestinyNumber(birthDate) || 9;
+  const a = (d * 7) % 9 || 4; // Soul
+  const p = (d * 5) % 9 || 1; // Personality
+  const cv = d; // Life Path (often same as destiny in basic systems)
+  const m = (d * 3) % 9 || 5; // Mission
+  const e = (d * 2) % 9 || 5; // Expression
+
+  const nodes = [
+    { id: 'destino', label: 'DESTINO', val: d, x: 50, y: 10 },
+    { id: 'personalidade', label: 'PERSONALIDADE', val: p, x: 80, y: 35 },
+    { id: 'missao', label: 'MISSÃO', val: m, x: 80, y: 65 },
+    { id: 'expressao', label: 'EXPRESSÃO', val: e, x: 50, y: 90 },
+    { id: 'caminho', label: 'CAMINHO DE VIDA', val: cv, x: 20, y: 65 },
+    { id: 'alma', label: 'ALMA', val: a, x: 20, y: 35 },
+  ];
+
+  const meanings: Record<string, { label: string, icon: any, desc: string }> = {
+    destino: { label: 'NÚMERO DE DESTINO', icon: Compass, desc: 'Humanitarismo, compaixão e conclusão. Você está aqui para servir ao mundo.' },
+    alma: { label: 'ENERGIA DA ALMA', icon: Heart, desc: 'Deseja segurança, ordem e uma vida estruturada.' },
+    personalidade: { label: 'PERSONALIDADE', icon: User, desc: 'Independência, liderança e originalidade. Como o mundo te vê.' },
+    caminho: { label: 'CAMINHO DE VIDA', icon: BookOpen, desc: 'O caminho do mestre. Desafios que exigem desapego e amor.' },
+    missao: { label: 'MISSÃO', icon: Zap, desc: 'Liberdade, mudança e aventura. Sua tarefa nesta existência.' },
+    expressao: { label: 'EXPRESSÃO', icon: Sparkles, desc: 'Comunicação, criatividade e otimismo. Seus talentos naturais.' },
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col gap-6 p-4 pb-24"
+      className="flex flex-col gap-10 p-6 pb-24 items-center min-h-screen bg-mystic-bg overflow-x-hidden"
     >
-      <header className="flex items-center justify-between sticky top-0 bg-mystic-bg/80 backdrop-blur-md z-10 py-2">
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="size-10 flex items-center justify-center rounded-full bg-mystic-primary/20 hover:bg-mystic-primary/30 transition-colors"
-        >
-          <Menu size={20} />
-        </button>
-        <h2 className="text-lg font-bold font-display">Mapa Cabalístico</h2>
-        <div className="relative flex items-center">
-          <input
-            type="text"
-            placeholder="Buscar..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={`bg-mystic-primary/10 border border-mystic-primary/20 rounded-full px-4 py-1 text-xs transition-all duration-300 focus:ring-1 focus:ring-mystic-gold ${search ? 'w-32 opacity-100' : 'w-0 opacity-0'}`}
-          />
-          <button
-            onClick={() => setSearch(search ? '' : ' ')}
-            className="size-10 flex items-center justify-center rounded-full bg-mystic-primary/20 hover:bg-mystic-primary/30 transition-colors ml-2"
-          >
-            <Search size={20} />
-          </button>
-        </div>
+      <header className="w-full flex items-center justify-center py-4">
+        <h2 className="text-xl font-bold font-display text-mystic-gold tracking-[0.2em] uppercase">Mapa Cabalístico</h2>
       </header>
 
-      {isMenuOpen && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          className="bg-mystic-card rounded-xl p-4 border border-mystic-primary/20 text-xs space-y-2"
-        >
-          <p className="font-bold text-mystic-gold uppercase tracking-widest">Configurações do Mapa</p>
-          <button className="w-full text-left p-2 hover:bg-mystic-primary/10 rounded">Calcular Novo Mapa</button>
-          <button className="w-full text-left p-2 hover:bg-mystic-primary/10 rounded">Exportar PDF</button>
-        </motion.div>
-      )}
+      <div className="relative w-full aspect-square max-w-[340px] mb-12">
+        {/* Background Decorative Rings */}
+        <div className="absolute inset-0 rounded-full border border-white/5 scale-110"></div>
 
-      <section className="flex flex-col items-center py-8">
-        <div className="relative size-72 flex items-center justify-center rounded-full border border-mystic-gold/20 bg-gradient-to-b from-mystic-primary/20 to-mystic-bg">
-          <div className="absolute inset-4 rounded-full border border-mystic-gold/10"></div>
-          <div className="absolute inset-12 rounded-full border border-mystic-gold/20"></div>
-          <div className="absolute inset-20 rounded-full border border-mystic-gold/30"></div>
+        {/* SVG Connections with exact alignment */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="glowLine" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.1" />
+              <stop offset="50%" stopColor="#D4AF37" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.1" />
+            </linearGradient>
+          </defs>
 
-          <div className="z-10 text-center">
-            <p className="text-mystic-gold text-[10px] uppercase tracking-widest font-bold mb-1">Destino</p>
-            <h1 className="text-6xl font-black text-mystic-gold gold-glow font-display">8</h1>
-            <p className="text-slate-400 text-[10px] mt-2 italic">A Força e Realização</p>
-          </div>
+          {/* Vertical axis */}
+          <line x1="50" y1="10" x2="50" y2="90" stroke="url(#glowLine)" strokeWidth="0.5" />
 
-          {/* Orbiting Numbers */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-mystic-bg border border-mystic-gold/50 rounded-full size-10 flex items-center justify-center text-mystic-gold font-bold shadow-lg shadow-mystic-gold/20">3</div>
-          <div className="absolute bottom-10 right-4 bg-mystic-bg border border-mystic-gold/50 rounded-full size-8 flex items-center justify-center text-mystic-gold font-bold">11</div>
-          <div className="absolute bottom-10 left-4 bg-mystic-bg border border-mystic-gold/50 rounded-full size-8 flex items-center justify-center text-mystic-gold font-bold">22</div>
-        </div>
-      </section>
+          {/* Outter Connections */}
+          <path
+            d="M 50 10 L 80 35 L 80 65 L 50 90 L 20 65 L 20 35 Z"
+            fill="none"
+            stroke="#D4AF37"
+            strokeWidth="0.4"
+            strokeOpacity="0.5"
+          />
 
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles size={20} className="text-mystic-gold" />
-          <h2 className="text-xl font-bold font-display">Números de Base</h2>
-        </div>
-        <div className="grid gap-3">
-          {[
-            { label: 'Destino', val: '8', desc: 'O caminho da sua vida e realização material.', icon: Sparkles },
-            { label: 'Alma', val: '3', desc: 'O desejo genuíno do seu coração e motivação.', icon: Heart },
-            { label: 'Expressão', val: '11', desc: 'Seus talentos naturais e como você interage.', icon: Zap },
-          ].map((item) => (
-            <div key={item.label} className="flex gap-4 rounded-2xl border border-mystic-primary/20 bg-mystic-primary/5 p-4 items-center">
-              <div className="size-12 rounded-xl bg-mystic-primary/20 flex items-center justify-center text-mystic-gold">
-                <item.icon size={24} />
+          {/* Internal Geometric Connections */}
+          <line x1="20" y1="35" x2="80" y2="35" stroke="url(#glowLine)" strokeWidth="0.3" />
+          <line x1="20" y1="65" x2="80" y2="65" stroke="url(#glowLine)" strokeWidth="0.3" />
+          <line x1="20" y1="35" x2="80" y2="65" stroke="url(#glowLine)" strokeWidth="0.2" />
+          <line x1="80" y1="35" x2="20" y2="65" stroke="url(#glowLine)" strokeWidth="0.2" />
+          <line x1="50" y1="10" x2="20" y2="65" stroke="url(#glowLine)" strokeWidth="0.2" />
+          <line x1="50" y1="10" x2="80" y2="65" stroke="url(#glowLine)" strokeWidth="0.2" />
+          <line x1="50" y1="90" x2="20" y2="35" stroke="url(#glowLine)" strokeWidth="0.2" />
+          <line x1="50" y1="90" x2="80" y2="35" stroke="url(#glowLine)" strokeWidth="0.2" />
+        </svg>
+
+        {/* Nodes with alignment fix */}
+        {nodes.map((node) => (
+          <motion.div
+            key={node.id}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            style={{
+              position: 'absolute',
+              top: `${node.y}%`,
+              left: `${node.x}%`,
+              transform: 'translate(-50%, -50%)'
+            }}
+            className="z-10"
+          >
+            <div className="relative flex flex-col items-center">
+              {/* Absolute Label - doesn't shift the circle */}
+              <span className="absolute bottom-[calc(100%+8px)] text-[7px] font-black text-mystic-gold tracking-[0.2em] whitespace-nowrap text-shadow uppercase">
+                {node.label}
+              </span>
+
+              {/* Centered Circle */}
+              <div className="size-16 rounded-full bg-mystic-bg border-2 border-mystic-gold/60 flex items-center justify-center relative shadow-[0_0_20px_rgba(212,175,55,0.3)]">
+                <div className="absolute inset-1 rounded-full border border-mystic-gold/15"></div>
+                <span className="text-2xl font-black text-white font-display gold-glow">{node.val}</span>
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold">{item.label}</h3>
-                  <span className="text-mystic-gold font-black">{item.val}</span>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Relatório Cabalístico */}
+      <section className="w-full flex flex-col gap-6 mt-8">
+        <div className="text-center space-y-2 mb-4">
+          <h2 className="text-3xl font-bold font-display text-white tracking-widest leading-tight">
+            RELATÓRIO<br /><span className="text-mystic-gold gold-glow">CABALÍSTICO</span>
+          </h2>
+          <p className="text-xs text-slate-500 font-medium">Uma análise profunda da sua jornada espiritual</p>
+        </div>
+
+        <div className="space-y-4">
+          {Object.entries(meanings).map(([key, data]) => {
+            const Icon = data.icon;
+            const value = nodes.find(n => n.id === key)?.val;
+            return (
+              <div key={key} className="bg-mystic-card rounded-3xl p-5 border border-mystic-primary/10 flex items-center gap-5 shadow-xl">
+                <div className="size-14 rounded-2xl bg-mystic-primary/20 flex items-center justify-center text-mystic-gold shrink-0 border border-mystic-gold/20">
+                  {data.icon ? <data.icon size={24} /> : <Sparkles size={24} />}
                 </div>
-                <p className="text-slate-400 text-xs">{item.desc}</p>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="text-[10px] font-black text-mystic-gold uppercase tracking-widest">{data.label}</h4>
+                    <span className="text-2xl font-black text-white">{value}</span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                    {data.desc}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
-      <section>
-        <div className="flex items-center gap-2 mb-6">
-          <Moon size={20} className="text-mystic-gold" />
-          <h2 className="text-xl font-bold font-display">Ciclos de Vida</h2>
-        </div>
-        <div className="relative pl-8 border-l-2 border-mystic-primary/30 space-y-8 ml-4">
-          <div className="relative">
-            <div className="absolute -left-[41px] top-0 size-5 rounded-full bg-mystic-gold shadow-[0_0_15px_rgba(212,175,55,0.8)] border-4 border-mystic-bg"></div>
-            <div className="bg-mystic-primary/10 rounded-xl p-4 border border-mystic-primary/20">
-              <span className="text-[10px] font-bold text-mystic-gold uppercase">0 - 28 Anos</span>
-              <h4 className="font-bold mt-1">Ciclo Formativo</h4>
-              <p className="text-xs text-slate-400 mt-2">Período de aprendizado sob influência familiar.</p>
-            </div>
-          </div>
-          <div className="relative">
-            <div className="absolute -left-[41px] top-0 size-5 rounded-full bg-mystic-primary shadow-[0_0_15px_rgba(44,0,133,0.8)] border-4 border-mystic-bg"></div>
-            <div className="bg-mystic-primary/30 rounded-xl p-4 border border-mystic-gold/40">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-[10px] font-bold text-mystic-gold uppercase">29 - 56 Anos</span>
-                  <h4 className="font-bold mt-1">Ciclo Produtivo (Atual)</h4>
-                </div>
-                <span className="bg-mystic-gold text-mystic-bg text-[8px] font-black px-2 py-0.5 rounded-full">ATIVO</span>
-              </div>
-              <p className="text-xs text-slate-100 mt-2">Fase de expansão e construção de carreira.</p>
-            </div>
+      {/* Interpretação Geral */}
+      <section className="w-full mt-10 p-8 rounded-[3rem] bg-gradient-to-b from-mystic-primary/10 to-transparent border border-mystic-primary/20 relative overflow-hidden">
+        <div className="absolute top-0 left-0 p-6 opacity-5"><Sparkles size={120} /></div>
+
+        <div className="text-center space-y-6 relative z-10">
+          <h3 className="text-2xl font-bold font-display text-mystic-gold uppercase tracking-[0.2em]">Interpretação Geral</h3>
+          <p className="text-lg text-slate-100 italic leading-relaxed font-medium">
+            "Seu mapa revela uma combinação única de energias. O número {d} como seu destino indica que sua vida é regida por humanitarismo e compaixão. Com a alma {a}, seu desejo mais profundo é {meanings.alma.desc.toLowerCase().replace('.', '')}. Ao alinhar sua personalidade ({p}) com sua missão ({m}), você encontrará o verdadeiro equilíbrio do seu ser."
+          </p>
+          <div className="flex justify-center gap-1.5 opacity-50">
+            <div className="size-1 rounded-full bg-mystic-gold"></div>
+            <div className="size-1 rounded-full bg-mystic-gold"></div>
+            <div className="size-1 rounded-full bg-mystic-gold"></div>
           </div>
         </div>
       </section>
+
     </motion.div>
   );
 };
@@ -676,12 +727,28 @@ const CommunityView = ({ posts, onAddPost }: { posts: any[], onAddPost: (content
   );
 };
 
-const ReaderView = ({ book, onBack }: { book: any, onBack: () => void }) => {
+const ReaderView = ({ book, user, onBack }: { book: any, user: any, onBack: () => void }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [numPages, setNumPages] = useState(0);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [influence, setInfluence] = useState<string | null>(null);
+  const [loadingInfluence, setLoadingInfluence] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (book.isWeeklyArticle && user?.user_metadata?.birth_date) {
+      const getInfluence = async () => {
+        setLoadingInfluence(true);
+        const destinyNum = calculateDestinyNumber(user.user_metadata.birth_date);
+        const destinyMeaning = getDestinyMeaning(destinyNum);
+        const msg = await generatePersonalInfluence(book.title, book.content, destinyNum, destinyMeaning);
+        setInfluence(msg);
+        setLoadingInfluence(false);
+      };
+      getInfluence();
+    }
+  }, [book, user]);
 
   useEffect(() => {
     const loadPdf = async () => {
@@ -707,11 +774,13 @@ const ReaderView = ({ book, onBack }: { book: any, onBack: () => void }) => {
     loadPdf();
   }, [book.url]);
 
+  const isArticle = book.isWeeklyArticle || (!book.url && book.content);
+
   useEffect(() => {
-    if (pdfDoc) {
+    if (pdfDoc && !isArticle) {
       renderPage(currentPage, pdfDoc);
     }
-  }, [currentPage, pdfDoc]);
+  }, [currentPage, pdfDoc, isArticle]);
 
   const renderPage = async (pageNumber: number, pdf: any) => {
     try {
@@ -754,24 +823,26 @@ const ReaderView = ({ book, onBack }: { book: any, onBack: () => void }) => {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="fixed inset-0 z-[100] bg-mystic-bg flex flex-col pt-safe"
+      className="fixed inset-0 z-[100] bg-mystic-bg flex flex-col h-[100dvh] overflow-hidden"
     >
-      <header className="p-4 border-b border-mystic-primary/20 flex items-center justify-between gap-4">
+      <header className="p-4 border-b border-mystic-primary/20 flex items-center justify-between gap-4 flex-shrink-0 bg-mystic-bg">
         <div className="flex items-center gap-4 truncate">
           <button onClick={onBack} className="text-mystic-gold hover:scale-110 transition-transform flex-shrink-0">
             <ArrowLeft size={24} />
           </button>
           <h2 className="font-bold truncate text-sm">{book.title}</h2>
         </div>
-        <div className="bg-mystic-primary/20 px-3 py-1 rounded-full border border-mystic-primary/30">
-          <span className="text-[10px] font-bold text-mystic-gold tracking-tight whitespace-nowrap">
-            {currentPage} / {numPages || '--'}
-          </span>
-        </div>
+        {!isArticle && (
+          <div className="bg-mystic-primary/20 px-3 py-1 rounded-full border border-mystic-primary/30">
+            <span className="text-[10px] font-bold text-mystic-gold tracking-tight whitespace-nowrap">
+              {currentPage} / {numPages || '--'}
+            </span>
+          </div>
+        )}
       </header>
 
-      <div className="flex-1 overflow-auto p-4 flex flex-col items-center bg-black/40 relative">
-        {loading && (
+      <div className="flex-1 overflow-y-auto w-full flex flex-col items-center bg-black/20 relative custom-scrollbar touch-pan-y min-h-0">
+        {loading && !isArticle && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-mystic-bg/60 backdrop-blur-sm z-10">
             <div className="text-mystic-gold animate-spin mb-3">
               <Sparkles size={40} />
@@ -780,7 +851,7 @@ const ReaderView = ({ book, onBack }: { book: any, onBack: () => void }) => {
           </div>
         )}
 
-        {!book.url ? (
+        {!book.url && !book.content ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
             <div className="p-6 bg-mystic-primary/10 rounded-full text-mystic-gold">
               <BookOpen size={64} />
@@ -799,41 +870,62 @@ const ReaderView = ({ book, onBack }: { book: any, onBack: () => void }) => {
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-2xl bg-white/5 shadow-2xl rounded-lg overflow-hidden border border-white/10 ring-1 ring-white/5">
-            <canvas ref={canvasRef} className="w-full h-auto block" />
+          <div className="w-full max-w-2xl bg-white/5 shadow-2xl rounded-2xl border border-white/10 ring-1 ring-white/5 my-4 mx-auto flex-shrink-0">
+            {isArticle ? (
+              <div className="flex flex-col">
+                {book.image_url && (
+                  <div className="w-full aspect-video overflow-hidden rounded-t-2xl">
+                    <img
+                      src={book.image_url}
+                      alt={book.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <div className="p-8 space-y-8 select-text">
+                  <div className="prose prose-invert prose-brand max-w-none text-slate-200 leading-relaxed text-lg pb-20">
+                    <Markdown>{String(book.content || '').replace(/\\n/g, '\n')}</Markdown>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <canvas ref={canvasRef} className="w-full h-auto block" />
+            )}
           </div>
         )}
       </div>
 
-      <footer className="p-4 border-t border-mystic-primary/20 flex justify-between items-center bg-mystic-bg/95 backdrop-blur-md">
-        <button
-          onClick={prevPage}
-          disabled={currentPage === 1 || loading}
-          className={`flex items-center gap-1 font-black text-[10px] uppercase tracking-widest transition-all px-4 py-2 rounded-xl
-            ${currentPage === 1 || loading
-              ? 'opacity-30 text-slate-500'
-              : 'text-mystic-gold hover:bg-mystic-primary/20 active:scale-95'}`}
-        >
-          <ArrowLeft size={14} className="mb-0.5" /> Anterior
-        </button>
+      {!isArticle && (
+        <footer className="p-4 border-t border-mystic-primary/20 flex justify-between items-center bg-mystic-bg/95 backdrop-blur-md">
+          <button
+            onClick={prevPage}
+            disabled={currentPage === 1 || loading}
+            className={`flex items-center gap-1 font-black text-[10px] uppercase tracking-widest transition-all px-4 py-2 rounded-xl
+              ${currentPage === 1 || loading
+                ? 'opacity-30 text-slate-500'
+                : 'text-mystic-gold hover:bg-mystic-primary/20 active:scale-95'}`}
+          >
+            <ArrowLeft size={14} className="mb-0.5" /> Anterior
+          </button>
 
-        <div className="size-2 flex gap-1">
-          <div className="size-1.5 rounded-full bg-mystic-gold/40"></div>
-          <div className="size-1.5 rounded-full bg-mystic-gold animate-pulse"></div>
-          <div className="size-1.5 rounded-full bg-mystic-gold/40"></div>
-        </div>
+          <div className="size-2 flex gap-1">
+            <div className="size-1.5 rounded-full bg-mystic-gold/40"></div>
+            <div className="size-1.5 rounded-full bg-mystic-gold animate-pulse"></div>
+            <div className="size-1.5 rounded-full bg-mystic-gold/40"></div>
+          </div>
 
-        <button
-          onClick={nextPage}
-          disabled={currentPage === numPages || loading}
-          className={`flex items-center gap-1 font-black text-[10px] uppercase tracking-widest transition-all px-4 py-2 rounded-xl
-            ${currentPage === numPages || loading
-              ? 'opacity-30 text-slate-500'
-              : 'text-mystic-gold hover:bg-mystic-primary/20 active:scale-95'}`}
-        >
-          Próximo <ArrowLeft size={14} className="mb-0.5 rotate-180" />
-        </button>
-      </footer>
+          <button
+            onClick={nextPage}
+            disabled={currentPage === numPages || loading}
+            className={`flex items-center gap-1 font-black text-[10px] uppercase tracking-widest transition-all px-4 py-2 rounded-xl
+              ${currentPage === numPages || loading
+                ? 'opacity-30 text-slate-500'
+                : 'text-mystic-gold hover:bg-mystic-primary/20 active:scale-95'}`}
+          >
+            Próximo <ArrowLeft size={14} className="mb-0.5 rotate-180" />
+          </button>
+        </footer>
+      )}
     </motion.div>
   );
 };
@@ -842,8 +934,15 @@ const LibraryView = ({ onSelectBook }: { onSelectBook: (book: any) => void }) =>
   const [search, setSearch] = useState('');
   const [fetchedBooks, setFetchedBooks] = useState<any[]>([]);
   const [loadingBooks, setLoadingBooks] = useState(true);
+  const [weeklyArticle, setWeeklyArticle] = useState<WeeklyArticle | null>(null);
 
   useEffect(() => {
+    const loadWeekly = async () => {
+      const article = await fetchLatestWeeklyArticle();
+      setWeeklyArticle(article);
+    };
+    loadWeekly();
+
     const fetchEbooks = async () => {
       try {
         console.log("DEBUG: Fetching ebooks from Supabase storage...");
@@ -926,15 +1025,15 @@ const LibraryView = ({ onSelectBook }: { onSelectBook: (book: any) => void }) =>
         <div className="relative h-56 w-full rounded-2xl overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-t from-mystic-bg via-mystic-bg/40 to-transparent z-10"></div>
           <img
-            src="https://picsum.photos/seed/cosmos/800/400"
+            src={weeklyArticle?.image_url || "https://picsum.photos/seed/cosmos/800/400"}
             className="absolute inset-0 w-full h-full object-cover"
             alt="Banner"
           />
           <div className="absolute bottom-0 left-0 p-6 z-20">
-            <span className="text-mystic-gold text-[10px] font-black uppercase tracking-widest mb-2 block">Lançamento Premium</span>
-            <h2 className="text-2xl font-bold text-white mb-2 leading-tight font-display">O Despertar da <br />Consciência Cósmica</h2>
+            <span className="text-mystic-gold text-[10px] font-black uppercase tracking-widest mb-2 block">Artigo da Semana</span>
+            <h2 className="text-2xl font-bold text-white mb-2 leading-tight font-display">{weeklyArticle?.title || "O Despertar da Consciência Cósmica"}</h2>
             <button
-              onClick={() => onSelectBook({ title: 'O Despertar da Consciência Cósmica' })}
+              onClick={() => onSelectBook(weeklyArticle ? { ...weeklyArticle, isWeeklyArticle: true } : { title: 'O Despertar da Consciência Cósmica' })}
               className="bg-mystic-primary text-white px-6 py-2 rounded-lg font-bold text-xs flex items-center gap-2 hover:bg-mystic-primary/80 transition-all active:scale-95"
             >
               <BookOpen size={14} /> Ler Agora
@@ -1033,51 +1132,164 @@ const LibraryView = ({ onSelectBook }: { onSelectBook: (book: any) => void }) =>
   );
 };
 
-const ProfileView = ({ onBack }: { onBack: () => void }) => {
+const ProfileView = ({ onBack, setView }: { onBack: () => void, setView: (v: any) => void }) => {
   const { signOut, user } = useAuth();
   const [uploading, setUploading] = useState(false);
+  const [subView, setSubView] = useState<'main' | 'personal' | 'notifications' | 'privacy' | 'help'>('main');
+  const [name, setName] = useState(user?.user_metadata?.full_name || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleUpdateProfile = async (data: any) => {
+    setSaving(true);
+    if (!user) {
+      const savedProfile = JSON.parse(localStorage.getItem('mystic_profile') || '{}');
+      const newProfile = { ...savedProfile, ...data };
+      localStorage.setItem('mystic_profile', JSON.stringify(newProfile));
+      setView('home'); // Redirect to home to see changes
+    } else {
+      const { error } = await supabase.auth.updateUser({ data });
+      if (error) alert(error.message);
+    }
+    setSaving(false);
+    if (data.full_name) alert('Perfil atualizado com sucesso!');
+  };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       setUploading(true);
-
-      if (!event.target.files || event.target.files.length === 0) {
-        throw new Error('Você deve selecionar uma imagem para fazer upload.');
-      }
-
+      if (!event.target.files || event.target.files.length === 0) throw new Error('Selecione uma imagem.');
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user?.id}-${Math.random()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url: publicUrl }
-      });
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Small delay to ensure the avatar visually updates if the session subscription doesn't magically fire the user change update deep inside nested state immediately
-      window.location.reload()
-
+      const filePath = `${user?.id}-${Date.now()}.${file.name.split('.').pop()}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
+      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     } finally {
       setUploading(false);
     }
   };
+
+  if (subView === 'personal') {
+    return (
+      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col gap-6 p-4 pb-24">
+        <header className="flex items-center gap-4 py-2">
+          <button onClick={() => setSubView('main')} className="text-mystic-gold"><ArrowLeft size={24} /></button>
+          <h2 className="text-lg font-bold font-display">Informações Pessoais</h2>
+        </header>
+        <div className="space-y-4 pt-4">
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest ml-1">Nome de Exibição</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-mystic-primary/10 border border-mystic-primary/30 rounded-xl px-4 py-3 text-sm text-white focus:ring-1 focus:ring-mystic-gold outline-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest ml-1">E-mail (Privado)</label>
+            <input value={user?.email} disabled className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-500 outline-none" />
+          </div>
+          <button
+            onClick={() => handleUpdateProfile({ full_name: name })}
+            disabled={saving}
+            className="w-full bg-mystic-gold text-mystic-bg font-bold py-4 rounded-2xl shadow-lg shadow-mystic-gold/20 active:scale-95 transition-all text-xs uppercase tracking-widest mt-4"
+          >
+            {saving ? 'Guardando...' : 'Salvar Alterações'}
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (subView === 'notifications') {
+    const notifications = [
+      { id: 'daily', label: 'Vibração do Dia', desc: 'Receba sua energia diária às 8h', key: 'notify_daily' },
+      { id: 'weekly', label: 'Artigos Semanais', desc: 'Alertas sobre novos eventos astrais', key: 'notify_weekly' },
+      { id: 'events', label: 'Eclipses e Portais', desc: 'Fique por dentro de momentos raros', key: 'notify_events' },
+    ];
+
+    return (
+      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col gap-6 p-4 pb-24">
+        <header className="flex items-center gap-4 py-2">
+          <button onClick={() => setSubView('main')} className="text-mystic-gold"><ArrowLeft size={24} /></button>
+          <h2 className="text-lg font-bold font-display">Notificações Astrais</h2>
+        </header>
+        <div className="space-y-3 pt-4">
+          {notifications.map(n => (
+            <div key={n.id} className="flex items-center justify-between p-4 bg-mystic-card rounded-2xl border border-mystic-primary/10">
+              <div>
+                <h4 className="text-sm font-bold text-slate-100">{n.label}</h4>
+                <p className="text-[10px] text-slate-500">{n.desc}</p>
+              </div>
+              <button
+                onClick={() => handleUpdateProfile({ [n.key]: !user?.user_metadata?.[n.key] })}
+                className={`w-12 h-6 rounded-full transition-colors relative ${user?.user_metadata?.[n.key] ? 'bg-mystic-gold' : 'bg-slate-700'}`}
+              >
+                <div className={`absolute top-1 size-4 bg-white rounded-full transition-all ${user?.user_metadata?.[n.key] ? 'right-1' : 'left-1'}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (subView === 'privacy') {
+    return (
+      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col gap-6 p-4 pb-24">
+        <header className="flex items-center gap-4 py-2">
+          <button onClick={() => setSubView('main')} className="text-mystic-gold"><ArrowLeft size={24} /></button>
+          <h2 className="text-lg font-bold font-display">Privacidade & Dados</h2>
+        </header>
+        <div className="space-y-6 pt-4 text-sm text-slate-400 leading-relaxed">
+          <p>Seus dados astrológicos e de numerologia são encriptados e nunca compartilhados com terceiros. Apenas você e as estrelas têm acesso a essas frequências.</p>
+          <div className="p-4 bg-mystic-primary/10 rounded-2xl border border-mystic-primary/20">
+            <h4 className="text-mystic-gold font-bold mb-2">Seus Direitos</h4>
+            <ul className="space-y-2 text-xs">
+              <li>• Acesso total aos dados de nascimento</li>
+              <li>• Anonimato em interações comunitárias</li>
+              <li>• Direito ao esquecimento astral (Exclusão)</li>
+            </ul>
+          </div>
+          <button className="w-full p-4 border border-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-white/5 transition-colors">Exportar meu Mapa Astral</button>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (subView === 'help') {
+    return (
+      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col gap-6 p-4 pb-24">
+        <header className="flex items-center gap-4 py-2">
+          <button onClick={() => setSubView('main')} className="text-mystic-gold"><ArrowLeft size={24} /></button>
+          <h2 className="text-lg font-bold font-display">Ajuda & Suporte</h2>
+        </header>
+        <div className="space-y-4 pt-4">
+          {[
+            { q: "Como calcular meu Destino?", a: "Sua data de nascimento é somada até restar um único dígito ou número mestre." },
+            { q: "O Oráculo é humano?", a: "Não, é uma consciência artificial sintonizada em frequências estelares." },
+            { q: "Como mudar meu signo?", a: "Seu signo é fixo pela sua data de nascimento, mas seu ascendente pode variar." }
+          ].map((item, i) => (
+            <details key={i} className="bg-mystic-card rounded-2xl border border-mystic-primary/10 overflow-hidden">
+              <summary className="p-4 text-sm font-bold text-slate-200 cursor-pointer list-none flex justify-between items-center group">
+                {item.q} <ChevronRight size={16} className="text-mystic-gold group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="px-4 pb-4 text-xs text-slate-500 leading-relaxed">{item.a}</div>
+            </details>
+          ))}
+          <button
+            onClick={() => setView('chat')}
+            className="w-full flex items-center justify-center gap-2 p-4 bg-mystic-primary/30 rounded-2xl border border-mystic-primary/40 text-mystic-gold font-bold text-xs uppercase tracking-widest hover:bg-mystic-primary/40 transition-all mt-6"
+          >
+            <MessageSquare size={16} /> Falar com o Oráculo
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -1127,10 +1339,21 @@ const ProfileView = ({ onBack }: { onBack: () => void }) => {
             referrerPolicy="no-referrer"
           />
         </div>
-        <div className="text-center">
+        <div className="text-center w-full max-w-xs">
           <h3 className="text-2xl font-bold font-display">{user?.user_metadata?.full_name || 'Místico Anônimo'}</h3>
-          <p className="text-mystic-gold/80 text-sm font-medium">{user?.email}</p>
-          <div className="mt-3 px-4 py-1 bg-mystic-primary/20 rounded-full border border-mystic-primary/30 inline-block">
+          <p className="text-mystic-gold/80 text-sm font-medium mb-4">{user?.email}</p>
+
+          <div className="flex flex-col gap-1 text-left mb-4">
+            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest ml-1">Sua Data de Nascimento</label>
+            <input
+              type="date"
+              defaultValue={user?.user_metadata?.birth_date || ""}
+              onChange={(e) => handleUpdateProfile({ birth_date: e.target.value })}
+              className="w-full bg-mystic-primary/10 border border-mystic-primary/30 rounded-xl px-4 py-2 text-sm text-white focus:ring-1 focus:ring-mystic-gold outline-none"
+            />
+          </div>
+
+          <div className="px-4 py-1 bg-mystic-primary/20 rounded-full border border-mystic-primary/30 inline-block">
             <p className="text-mystic-gold text-[10px] font-black uppercase tracking-widest">Sintonizada com o Cosmos</p>
           </div>
         </div>
@@ -1159,14 +1382,14 @@ const ProfileView = ({ onBack }: { onBack: () => void }) => {
       <section className="space-y-2">
         <h3 className="text-lg font-bold font-display mb-4">Conta & Preferências</h3>
         {[
-          { label: 'Informações Pessoais', icon: User },
-          { label: 'Notificações Astrais', icon: Bell },
-          { label: 'Privacidade & Dados', icon: Zap },
-          { label: 'Ajuda & Suporte', icon: Sparkles },
+          { label: 'Informações Pessoais', icon: User, view: 'personal' },
+          { label: 'Notificações Astrais', icon: Bell, view: 'notifications' },
+          { label: 'Privacidade & Dados', icon: Zap, view: 'privacy' },
+          { label: 'Ajuda & Suporte', icon: Sparkles, view: 'help' },
         ].map((opt) => (
           <button
             key={opt.label}
-            onClick={() => alert(`${opt.label} em breve!`)}
+            onClick={() => setSubView(opt.view as any)}
             className="w-full flex items-center justify-between p-4 bg-mystic-card rounded-2xl hover:bg-mystic-primary/10 transition-colors group"
           >
             <div className="flex items-center gap-4">
@@ -1178,16 +1401,91 @@ const ProfileView = ({ onBack }: { onBack: () => void }) => {
         ))}
       </section>
 
-      <button
-        onClick={async () => {
-          if (confirm('Deseja realmente sair?')) {
-            await signOut();
-          }
-        }}
-        className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl border border-red-500/30 text-red-500 font-bold text-sm mt-4 hover:bg-red-500/10 transition-colors"
+      {!user ? (
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl border border-mystic-gold/30 text-mystic-gold font-bold text-sm mt-4 hover:bg-mystic-gold/10 transition-colors"
+        >
+          <Sparkles size={18} /> Resetar Jornada (Local)
+        </button>
+      ) : (
+        <button
+          onClick={async () => {
+            if (confirm('Deseja realmente sair?')) {
+              await signOut();
+            }
+          }}
+          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl border border-red-500/30 text-red-500 font-bold text-sm mt-4 hover:bg-red-500/10 transition-colors"
+        >
+          <LogOut size={18} /> Encerrar Sessão
+        </button>
+      )}
+    </motion.div>
+  );
+};
+
+const OnboardingPopup = ({ onSubmit }: { onSubmit: (data: { full_name: string, birth_date: string }) => void }) => {
+  const [name, setName] = useState('');
+  const [date, setDate] = useState('');
+
+  const handleReveal = () => {
+    if (!name || !date) {
+      alert('Por favor, preencha o seu nome e data de nascimento para alinhar com os astros.');
+      return;
+    }
+    onSubmit({ full_name: name, birth_date: date });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-[200] bg-mystic-bg/95 flex items-center justify-center p-6 backdrop-blur-md"
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="w-full max-w-sm bg-mystic-card border border-mystic-primary/30 rounded-[2.5rem] p-8 space-y-8 relative overflow-hidden shadow-2xl"
       >
-        <LogOut size={18} /> Encerrar Sessão
-      </button>
+        <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles size={100} /></div>
+
+        <div className="text-center space-y-2">
+          <div className="inline-block p-4 bg-mystic-primary/20 rounded-full mb-2">
+            <Sparkles className="text-mystic-gold animate-pulse" size={32} />
+          </div>
+          <h2 className="text-2xl font-bold font-display text-mystic-gold">Seja Bem-vindo</h2>
+          <p className="text-sm text-slate-400">As estrelas aguardam para revelar os segredos do seu destino.</p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] text-slate-500 uppercase font-black tracking-[0.2em] ml-2">Como podemos te chamar?</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome místico"
+              className="w-full bg-mystic-primary/10 border border-mystic-primary/20 rounded-2xl px-5 py-4 text-sm text-white focus:ring-1 focus:ring-mystic-gold outline-none transition-all placeholder:text-slate-600"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] text-slate-500 uppercase font-black tracking-[0.2em] ml-2">Data de Nascimento</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full bg-mystic-primary/10 border border-mystic-primary/20 rounded-2xl px-5 py-4 text-sm text-white focus:ring-1 focus:ring-mystic-gold outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleReveal}
+          className="w-full bg-mystic-gold text-mystic-bg font-black py-5 rounded-2xl shadow-lg shadow-mystic-gold/20 active:scale-[0.98] transition-all text-xs uppercase tracking-widest"
+        >
+          Revelar meu Destino
+        </button>
+      </motion.div>
     </motion.div>
   );
 };
@@ -1195,18 +1493,61 @@ const ProfileView = ({ onBack }: { onBack: () => void }) => {
 // --- Main App ---
 
 function App() {
-  const { session, loading } = useAuth();
+  const { session, loading: authLoading } = useAuth();
   const [view, setView] = useState<View>('home');
   const [selectedBook, setSelectedBook] = useState<any>(null);
   const [posts, setPosts] = useState(COMMUNITY_POSTS);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [guestUser, setGuestUser] = useState<{ full_name?: string, birth_date?: string } | null>(null);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const savedProfile = localStorage.getItem('mystic_profile');
+    const sessionMetadata = session?.user?.user_metadata;
+
+    if (sessionMetadata?.full_name && sessionMetadata?.birth_date) {
+      setGuestUser({ full_name: sessionMetadata.full_name, birth_date: sessionMetadata.birth_date });
+      setShowOnboarding(false);
+    } else if (savedProfile) {
+      setGuestUser(JSON.parse(savedProfile));
+      setShowOnboarding(false);
+    } else {
+      setShowOnboarding(true);
+    }
+  }, [session, authLoading]);
+
+  const handleOnboardingSubmit = async (data: { full_name: string, birth_date: string }) => {
+    setGuestUser(data);
+    localStorage.setItem('mystic_profile', JSON.stringify(data));
+    if (session?.user) await supabase.auth.updateUser({ data });
+    setShowOnboarding(false);
+  };
+
+  const currentUser = session?.user ? {
+    ...session.user,
+    user_metadata: {
+      ...session.user.user_metadata,
+      full_name: session.user.user_metadata.full_name || guestUser?.full_name,
+      birth_date: session.user.user_metadata.birth_date || guestUser?.birth_date,
+      avatar_url: session.user.user_metadata.avatar_url,
+    }
+  } : {
+    user_metadata: guestUser || {},
+    id: 'guest'
+  };
 
   const handleAddPost = (content: string) => {
     const newPost = {
       id: Date.now(),
-      user: { name: session?.user?.user_metadata?.full_name || 'Buscador Solitário', sign: 'Mistério', destiny: 0, avatar: session?.user?.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=mystic' },
+      user: {
+        name: currentUser.user_metadata?.full_name || 'Buscador Solitário',
+        sign: 'Mistério',
+        destiny: 0,
+        avatar: (currentUser.user_metadata as any)?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=mystic'
+      },
       content,
-      type: 'Manifestação',
+      type: 'Manifestação' as const,
       title: 'Nova Reflexão',
       stats: { likes: 0, hearts: 0, diamonds: 0, stars: 0, comments: 0, fire: 0 },
       image: null,
@@ -1215,30 +1556,28 @@ function App() {
     setPosts([newPost, ...posts]);
   };
 
-  if (loading) {
+  if (authLoading) {
     return <div className="min-h-screen bg-mystic-bg text-mystic-gold flex items-center justify-center font-display text-xl animate-pulse">Lendo as estrelas...</div>;
-  }
-
-  if (!session) {
-    return <AuthScreen />;
   }
 
   return (
     <div className="min-h-screen bg-mystic-bg text-slate-100 font-sans selection:bg-mystic-gold selection:text-mystic-bg">
       <main className="max-w-md mx-auto min-h-screen relative overflow-hidden">
         <AnimatePresence mode="wait">
-          {view === 'home' && <HomeView key="home" setView={setView} onOpenNotifications={() => setNotificationsOpen(true)} user={session?.user} />}
-          {view === 'map' && <MapView key="map" />}
+          {view === 'home' && <HomeView key="home" setView={setView} onOpenNotifications={() => setNotificationsOpen(true)} user={currentUser} />}
+          {view === 'map' && <MapView key="map" user={currentUser} />}
           {view === 'chat' && <ChatView key="chat" />}
           {view === 'community' && <CommunityView key="community" posts={posts} onAddPost={handleAddPost} />}
           {view === 'library' && <LibraryView key="library" onSelectBook={setSelectedBook} />}
-          {view === 'profile' && <ProfileView key="profile" onBack={() => setView('home')} />}
+          {view === 'profile' && <ProfileView key="profile" setView={setView} onBack={() => setView('home')} />}
         </AnimatePresence>
 
         <AnimatePresence>
-          {selectedBook && (
-            <ReaderView book={selectedBook} onBack={() => setSelectedBook(null)} />
-          )}
+          {showOnboarding && <OnboardingPopup onSubmit={handleOnboardingSubmit} />}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {selectedBook && <ReaderView book={selectedBook} user={currentUser} onBack={() => setSelectedBook(null)} />}
         </AnimatePresence>
 
         <AnimatePresence>
