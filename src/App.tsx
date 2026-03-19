@@ -1353,15 +1353,17 @@ const LibraryView = ({
   const getBookImage = (book: any) => {
     if (book.image_url) return book.image_url;
     if (book.image) return book.image;
-    const categoryKeywords: Record<string, string> = {
-      'amor': 'mystical-heart-stars',
-      'prosperidade': 'golden-cosmic-wealth',
-      'numerologia': 'sacred-geometry-numbers',
-      'espiritualidade': 'celestial-spiritual-light',
-      'default': 'mystical-universe-stars'
+    
+    const defaultImages: Record<string, string> = {
+      'amor': 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&q=80',
+      'prosperidade': 'https://images.unsplash.com/photo-1530973428-5bf2db2e4d71?w=400&q=80',
+      'numerologia': 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&q=80',
+      'espiritualidade': 'https://images.unsplash.com/photo-1505506874110-6a7a69069a08?w=400&q=80',
+      'default': 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=80'
     };
-    const keyword = categoryKeywords[book.category?.toLowerCase()] || categoryKeywords['default'];
-    return `https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&auto=format&fit=crop&sig=${book.id || Math.random()}`;
+    
+    const category = book.category?.toLowerCase() || '';
+    return defaultImages[category] || defaultImages['default'];
   };
 
   const handleBookClick = (book: any) => {
