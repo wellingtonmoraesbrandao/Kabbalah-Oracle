@@ -1882,7 +1882,7 @@ const ProfileView = ({ onBack, setView, guestUser, isPlaying }: { onBack: () => 
             <div className="text-center mb-4">
               <p className="text-sm text-slate-400">Desbloqueie todo o potencial do cosmos com nossos planos premium.</p>
             </div>
-            <SubscriptionPlans userEmail={email} userName={name} />
+            <SubscriptionPlans userEmail={email} userName={name} onLoginSuccess={() => {}} />
           </>
         )}
       </motion.div>
@@ -2477,21 +2477,11 @@ function App() {
                   </button>
                 </div>
                 <div className="p-4">
-                  {!session?.user && !guestUser?.email && (
-                    <div className="mb-4 p-3 bg-mystic-primary/20 rounded-xl border border-mystic-gold/20">
-                      <p className="text-xs text-slate-300 mb-2">
-                        Digite seu email para receber o acesso premium:
-                      </p>
-                      <input
-                        type="email"
-                        value={guestUser?.email || ''}
-                        onChange={(e) => setGuestUser({ ...guestUser, email: e.target.value })}
-                        placeholder="seu@email.com"
-                        className="w-full bg-mystic-bg/50 border border-mystic-primary/30 rounded-xl px-4 py-2 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-mystic-gold outline-none"
-                      />
-                    </div>
-                  )}
-                  <SubscriptionPlans userEmail={guestUser?.email || (currentUser as any)?.email} userName={guestUser?.full_name || currentUser?.user_metadata?.full_name} />
+                  <SubscriptionPlans 
+                    userEmail={guestUser?.email || (currentUser as any)?.email} 
+                    userName={guestUser?.full_name || currentUser?.user_metadata?.full_name}
+                    onLoginSuccess={() => setShowPremiumPopup(false)}
+                  />
                 </div>
               </motion.div>
             </motion.div>
