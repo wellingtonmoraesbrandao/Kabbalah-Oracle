@@ -53,11 +53,6 @@ export const SubscriptionPlans: React.FC<{
   };
 
   const handleSubscribe = async (priceId: string) => {
-    if (!loginEmail && !userEmail) {
-      alert('Por favor, digite seu email para continuar.');
-      return;
-    }
-    
     const email = loginEmail || userEmail;
     if (email) savePremiumEmail(email);
     
