@@ -2148,7 +2148,7 @@ function App() {
   const [view, setView] = useState<View>('home');
   const [selectedBook, setSelectedBook] = useState<any>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false); // Disabled - app is open to all
   const [showAuth, setShowAuth] = useState(false);
   const [guestUser, setGuestUser] = useState<{ full_name?: string, birth_date?: string, email?: string } | null>(null);
 
@@ -2320,11 +2320,6 @@ function App() {
 
   if (authLoading) {
     return <div className="min-h-screen bg-mystic-bg text-mystic-gold flex items-center justify-center font-display text-xl animate-pulse">Lendo as estrelas...</div>;
-  }
-
-  // Show AuthScreen if not logged in
-  if (showAuth && !session) {
-    return <AuthScreen />;
   }
 
   return (
