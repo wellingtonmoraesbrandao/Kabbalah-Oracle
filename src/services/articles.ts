@@ -26,6 +26,26 @@ export const fetchLatestWeeklyArticle = async (): Promise<WeeklyArticle | null> 
     return data;
 };
 
+export const triggerWeeklyArticleGeneration = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+        const { data, error } = await supabase.functions.invoke('generate-weekly-article');
+        
+        if (error) {
+            console.error('Error triggering article generation:', error);
+            return { success: false, message: error.message };
+        }
+
+        if (data?.status === 'skipped') {
+            return { success: true, message: 'Artigo já gerado esta semana' };
+        }
+
+        return { success: true, message: 'Artigo da semana gerado com sucesso!' };
+    } catch (err: any) {
+        console.error('Error invoking function:', err);
+        return { success: false, message: err.message };
+    }
+};
+
 export const generatePersonalInfluence = async (
     articleTitle: string,
     articleContent: string,
