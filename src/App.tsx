@@ -290,7 +290,7 @@ const Navbar = ({ currentView, setView }: { currentView: View, setView: (v: View
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#020617]/80 backdrop-blur-2xl border-t border-mystic-gold/10 px-4 pb-8 pt-3 flex justify-around items-center">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#0a192f]/80 backdrop-blur-2xl border-t border-mystic-gold/10 px-4 pb-8 pt-3 flex justify-around items-center">
       {navItems.map((item) => (
         <button
           key={item.id}
@@ -364,7 +364,7 @@ const HomeView = ({ setView, onOpenNotifications, user, isPlaying, dailyForecast
     <section className="relative overflow-hidden rounded-[2rem]">
       <div className="absolute inset-0">
         <img src="./src/assets/oraculo_bg.jpg" className="w-full h-full object-cover" alt="Oráculo" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#020617]/60 via-[#020617]/80 to-[#020617]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a192f]/60 via-[#0a192f]/80 to-[#0a192f]" />
       </div>
       <div className="relative z-10 p-6 text-center space-y-4">
         <div className="flex flex-col items-center gap-1">
@@ -414,7 +414,7 @@ const HomeView = ({ setView, onOpenNotifications, user, isPlaying, dailyForecast
               console.error('Error sharing:', err);
             }
           }}
-          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#f9d423] to-[#d4af37] text-[#020617] font-black uppercase tracking-wider text-xs shadow-lg shadow-mystic-gold/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#f9d423] to-[#d4af37] text-[#0a192f] font-black uppercase tracking-wider text-xs shadow-lg shadow-mystic-gold/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
         >
           <Share2 size={16} />
           <span>Compartilhe sua energia com o Mundo</span>
@@ -624,8 +624,8 @@ const MapView = ({ user, onOpenNotifications, setView, isPlaying, onOpenTreeMap,
               <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.15" />
             </linearGradient>
             <radialGradient id="nodeGrad" cx="40%" cy="35%" r="60%">
-              <stop offset="0%"   stopColor="#1e293b" />
-              <stop offset="100%" stopColor="#020617" />
+              <stop offset="0%"   stopColor="#112240" />
+              <stop offset="100%" stopColor="#0a192f" />
             </radialGradient>
             <filter id="glow">
               <feGaussianBlur stdDeviation="1.2" result="blur" />

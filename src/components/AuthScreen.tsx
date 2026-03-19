@@ -110,7 +110,7 @@ export const AuthScreen = () => {
 
     return (
         <div className="min-h-screen celestial-bg flex flex-col items-center justify-center p-4 relative overflow-hidden text-slate-200 font-sans">
-            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#1e293b] rounded-full mix-blend-screen filter blur-[120px] opacity-40 animate-pulse"></div>
+            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#112240] rounded-full mix-blend-screen filter blur-[120px] opacity-40 animate-pulse"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#d4af37] rounded-full mix-blend-screen filter blur-[120px] opacity-20 animate-pulse delay-1000"></div>
 
             <motion.div
@@ -120,7 +120,7 @@ export const AuthScreen = () => {
                 className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl relative z-10"
             >
                 <div className="flex flex-col items-center mb-8">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#d4af37] to-[#1e293b] flex items-center justify-center mb-6 shadow-2xl shadow-mystic-gold/20 relative">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#d4af37] to-[#112240] flex items-center justify-center mb-6 shadow-2xl shadow-mystic-gold/20 relative">
                         <div className="absolute inset-0 rounded-full animate-ping bg-mystic-gold/20"></div>
                         <Moon size={40} className="text-white relative z-10" />
                     </div>

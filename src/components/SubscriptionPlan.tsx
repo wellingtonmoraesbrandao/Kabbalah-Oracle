@@ -126,7 +126,7 @@ export const SubscriptionPlans: React.FC<{
           {prices.map((price) => (
             <div 
               key={price.id}
-              className="relative bg-gradient-to-br from-indigo-900/40 to-purple-900/40 backdrop-blur-xl rounded-2xl p-5 border border-white/10 hover:border-indigo-500/50 transition-all"
+              className="relative bg-gradient-to-br from-indigo-900/40 to-purple-900/40 backdrop-blur-xl rounded-xl p-5 border border-white/10 hover:border-indigo-500/50 transition-all"
             >
               {price.products.name.toLowerCase().includes('premium') && (
                 <div className="absolute -top-2.5 left-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-lg">
@@ -162,10 +162,10 @@ export const SubscriptionPlans: React.FC<{
                 </li>
               </ul>
 
-              <button
+                <button
                 onClick={() => handleSubscribe(price.id)}
                 disabled={subscribing !== null}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#f9d423] hover:from-[#f9d423] hover:to-[#d4af37] text-black font-bold text-sm shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-lg bg-gradient-to-r from-[#d4af37] to-[#f9d423] hover:from-[#f9d423] hover:to-[#d4af37] text-black font-bold text-sm shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {subscribing === price.id ? (
                   <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -200,7 +200,7 @@ export const SubscriptionPlans: React.FC<{
                   setLoginError('');
                 }}
                 placeholder="Seu email cadastrado"
-                className="w-full bg-mystic-bg/50 border border-mystic-primary/30 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-mystic-gold outline-none"
+                className="w-full bg-mystic-bg/50 border border-mystic-primary/30 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-mystic-gold outline-none"
               />
             </div>
             {loginError && (
@@ -217,7 +217,7 @@ export const SubscriptionPlans: React.FC<{
           <button
             type="submit"
             disabled={loginLoading}
-            className="w-full py-2.5 rounded-xl bg-mystic-primary/30 hover:bg-mystic-primary/50 border border-mystic-primary/30 text-mystic-gold font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-lg bg-mystic-primary/30 hover:bg-mystic-primary/50 border border-mystic-primary/30 text-mystic-gold font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loginLoading ? (
               <div className="w-4 h-4 border-2 border-mystic-gold/30 border-t-mystic-gold rounded-full animate-spin" />
