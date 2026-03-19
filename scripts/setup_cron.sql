@@ -1,15 +1,10 @@
--- Enable pg_cron extension
+-- Habilitar pg_cron
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
--- Grant necessary permissions
-GRANT USAGE ON SCHEMA cron TO postgres;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA cron TO postgres;
-
--- Schedule: Every Monday at midnight
--- This cron job calls the generate-weekly-article function
+-- Agendar: Toda segunda-feira às 00:00 (meia-noite)
 SELECT cron.schedule(
     'generate-weekly-article-every-monday',
-    '0 0 * * 1',  -- At 00:00 every Monday
+    '0 0 * * 1',
     $$
     SELECT net.http_post(
         url => 'https://bvtkplkxlgqqwikfuoya.supabase.co/functions/v1/generate-weekly-article',
@@ -17,3 +12,6 @@ SELECT cron.schedule(
     );
     $$
 );
+
+-- Verificar se foi agendado
+SELECT * FROM cron.job;
