@@ -130,6 +130,36 @@ async function generateEbookContent(idea: { title: string; category: string }) {
     return fullContent;
 }
 
+async function uploadCoverToStorage(url: string, title: string) {
+    try {
+        console.log(`🖼️ Baixando capa para: ${title}...`);
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        const fileName = `${title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.jpg`;
+        const filePath = `covers/${fileName}`;
+
+        const { data, error } = await supabase.storage
+            .from('Ebooks')
+            .upload(filePath, buffer, {
+                contentType: 'image/jpeg',
+                upsert: true
+            });
+
+        if (error) throw error;
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('Ebooks')
+            .getPublicUrl(filePath);
+
+        return publicUrl;
+    } catch (e) {
+        console.error("❌ Erro ao processar imagem:", e);
+        return url; // Fallback to original URL
+    }
+}
+
 async function main() {
     console.log("📚 Iniciando Sistema de Geração Dinâmica...");
     
@@ -143,8 +173,11 @@ async function main() {
         const content = await generateEbookContent(idea);
         
         if (content) {
-            const coverUrl = `https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&auto=format&fit=crop&sig=${Math.random()}&${idea.keyword}`;
+            const unsplashUrl = `https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&auto=format&fit=crop&sig=${Math.random()}&${idea.keyword}`;
             
+            // Upload to Supabase Storage
+            const coverUrl = await uploadCoverToStorage(unsplashUrl, idea.title);
+
             const { error } = await supabase.from('ebooks').insert({
                 title: idea.title,
                 category: idea.category,

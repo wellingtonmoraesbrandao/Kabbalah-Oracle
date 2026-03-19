@@ -1682,11 +1682,26 @@ const ProfileView = ({ onBack, setView, guestUser, isPlaying }: { onBack: () => 
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest ml-1">Data de Nascimento</label>
+            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest ml-1">Data de Nascimento (DD/MM/AAAA)</label>
             <input
-              type="date"
-              value={effectiveBirthDate}
-              onChange={(e) => handleUpdateProfile({ birth_date: e.target.value })}
+              type="text"
+              value={effectiveBirthDate ? (() => {
+                const d = new Date(effectiveBirthDate + 'T00:00:00');
+                return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+              })() : ''}
+              onChange={(e) => {
+                const formatted = e.target.value.replace(/\D/g, '');
+                let dateStr = '';
+                if (formatted.length <= 2) dateStr = formatted;
+                else if (formatted.length <= 4) dateStr = `${formatted.slice(0, 2)}/${formatted.slice(2)}`;
+                else dateStr = `${formatted.slice(0, 2)}/${formatted.slice(2, 4)}/${formatted.slice(4, 8)}`;
+                const parts = dateStr.split('/');
+                if (parts.length === 3 && parts[2].length === 4) {
+                  handleUpdateProfile({ birth_date: `${parts[2]}-${parts[1]}-${parts[0]}` });
+                }
+              }}
+              placeholder="DD/MM/AAAA"
+              maxLength={10}
               className="w-full bg-mystic-primary/10 border border-mystic-primary/30 rounded-xl px-4 py-3 text-sm text-white focus:ring-1 focus:ring-mystic-gold outline-none"
             />
           </div>
@@ -1936,11 +1951,26 @@ const ProfileView = ({ onBack, setView, guestUser, isPlaying }: { onBack: () => 
           <p className="text-mystic-gold/80 text-sm font-medium mb-4">{effectiveEmail || 'Viajante Anônimo'}</p>
 
           <div className="flex flex-col gap-1 text-left mb-4">
-            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest ml-1">Sua Data de Nascimento</label>
+            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest ml-1">Sua Data de Nascimento (DD/MM/AAAA)</label>
             <input
-              type="date"
-              defaultValue={effectiveBirthDate}
-              onChange={(e) => handleUpdateProfile({ birth_date: e.target.value })}
+              type="text"
+              defaultValue={effectiveBirthDate ? (() => {
+                const d = new Date(effectiveBirthDate + 'T00:00:00');
+                return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+              })() : ''}
+              onChange={(e) => {
+                const formatted = e.target.value.replace(/\D/g, '');
+                let dateStr = '';
+                if (formatted.length <= 2) dateStr = formatted;
+                else if (formatted.length <= 4) dateStr = `${formatted.slice(0, 2)}/${formatted.slice(2)}`;
+                else dateStr = `${formatted.slice(0, 2)}/${formatted.slice(2, 4)}/${formatted.slice(4, 8)}`;
+                const parts = dateStr.split('/');
+                if (parts.length === 3 && parts[2].length === 4) {
+                  handleUpdateProfile({ birth_date: `${parts[2]}-${parts[1]}-${parts[0]}` });
+                }
+              }}
+              placeholder="DD/MM/AAAA"
+              maxLength={10}
               className="w-full bg-mystic-primary/10 border border-mystic-primary/30 rounded-xl px-4 py-2 text-sm text-white focus:ring-1 focus:ring-mystic-gold outline-none"
             />
           </div>
@@ -2022,12 +2052,37 @@ const OnboardingPopup = ({ onSubmit }: { onSubmit: (data: { full_name: string, b
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
 
+  const formatDateInput = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 4) return `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
+    return `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(4, 8)}`;
+  };
+
+  const parseDate = (dateStr: string): string => {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const day = parts[0].padStart(2, '0');
+      const month = parts[1].padStart(2, '0');
+      const year = parts[2].padStart(4, '0');
+      if (year.length === 4 && parseInt(year) >= 1900 && parseInt(year) <= new Date().getFullYear()) {
+        return `${year}-${month}-${day}`;
+      }
+    }
+    return dateStr;
+  };
+
   const handleReveal = () => {
-    if (!name || !date) {
-      alert('Por favor, preencha o seu nome e data de nascimento para alinhar com os astros.');
+    const formattedDate = parseDate(date);
+    if (!name) {
+      alert('Por favor, preencha o seu nome para alinhar com os astros.');
       return;
     }
-    onSubmit({ full_name: name, birth_date: date });
+    if (!formattedDate || formattedDate.length !== 10) {
+      alert('Por favor, preencha uma data de nascimento válida (DD/MM/AAAA).');
+      return;
+    }
+    onSubmit({ full_name: name, birth_date: formattedDate });
   };
 
   return (
@@ -2063,12 +2118,14 @@ const OnboardingPopup = ({ onSubmit }: { onSubmit: (data: { full_name: string, b
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] text-slate-500 uppercase font-black tracking-[0.2em] ml-2">Data de Nascimento</label>
+            <label className="text-[10px] text-slate-500 uppercase font-black tracking-[0.2em] ml-2">Data de Nascimento (DD/MM/AAAA)</label>
             <input
-              type="date"
+              type="text"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-mystic-primary/10 border border-mystic-primary/20 rounded-2xl px-5 py-4 text-sm text-white focus:ring-1 focus:ring-mystic-gold outline-none transition-all"
+              onChange={(e) => setDate(formatDateInput(e.target.value))}
+              placeholder="DD/MM/AAAA"
+              maxLength={10}
+              className="w-full bg-mystic-primary/10 border border-mystic-primary/20 rounded-2xl px-5 py-4 text-sm text-white focus:ring-1 focus:ring-mystic-gold outline-none transition-all placeholder:text-slate-600"
             />
           </div>
         </div>
