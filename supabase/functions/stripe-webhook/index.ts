@@ -82,6 +82,17 @@ serve(async (req) => {
 
           if (customerData) {
             supabaseUserId = customerData.id;
+            
+            // Update user metadata with email and name if provided
+            if (customerEmail || customerName) {
+              await supabaseAdmin.auth.admin.updateUserById(supabaseUserId, {
+                email: customerEmail,
+                data: {
+                  ...(customerName && { full_name: customerName }),
+                  ...(customerEmail && { email: customerEmail })
+                }
+              });
+            }
           } else if (customerEmail) {
             // 2. If not linked, check if user exists by email
             const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
@@ -91,10 +102,20 @@ serve(async (req) => {
             
             if (existingUser) {
               supabaseUserId = existingUser.id;
+              
+              // Update user metadata with name if provided
+              if (customerName) {
+                await supabaseAdmin.auth.admin.updateUserById(supabaseUserId, {
+                  data: { full_name: customerName }
+                });
+              }
             } else {
               // 3. Create a new user and invite them (sends magic link)
               const { data: { user: newUser }, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(customerEmail, {
-                data: { full_name: customerName }
+                data: { 
+                  full_name: customerName || 'Usuário Premium',
+                  email: customerEmail
+                }
               });
               if (inviteError) throw inviteError;
               supabaseUserId = newUser.id;
@@ -108,6 +129,7 @@ serve(async (req) => {
           }
 
           if (supabaseUserId) {
+            // 5. Create/update subscription
             await supabaseAdmin.from("subscriptions").upsert({
               id: subscription.id,
               user_id: supabaseUserId,

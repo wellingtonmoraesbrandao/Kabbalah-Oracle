@@ -1,6 +1,20 @@
 import { supabase } from './supabase';
 
+const PREMIUM_EMAIL_KEY = 'mystic_premium_email';
+
+export function savePremiumEmail(email: string) {
+  localStorage.setItem(PREMIUM_EMAIL_KEY, email.toLowerCase());
+}
+
+export function getSavedPremiumEmail(): string | null {
+  return localStorage.getItem(PREMIUM_EMAIL_KEY);
+}
+
 export async function createCheckoutSession(priceId: string, customerEmail?: string, customerName?: string) {
+  if (customerEmail) {
+    savePremiumEmail(customerEmail);
+  }
+  
   const { data, error } = await supabase.functions.invoke('create-checkout', {
     body: { priceId, customerEmail, customerName },
   });
@@ -30,17 +44,55 @@ export async function createPortalSession() {
 
 export async function getSubscription() {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  
+  let subscription = null;
+  
+  if (user) {
+    subscription = await checkSubscriptionByUserId(user.id);
+  }
+  
+  if (!subscription) {
+    const savedEmail = getSavedPremiumEmail();
+    if (savedEmail) {
+      subscription = await checkSubscriptionByEmail(savedEmail);
+    }
+  }
+  
+  return subscription;
+}
 
+async function checkSubscriptionByUserId(userId: string) {
   const { data, error } = await supabase
     .from('subscriptions')
     .select('*, prices(*, products(*))')
+    .eq('user_id', userId)
     .in('status', ['trialing', 'active'])
-    .single();
+    .maybeSingle();
 
   if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching subscription:', error);
+    console.error('Error fetching subscription by userId:', error);
   }
 
   return data;
+}
+
+async function checkSubscriptionByEmail(email: string) {
+  try {
+    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('Error fetching users:', listError);
+      return null;
+    }
+    
+    const user = users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+    
+    if (user) {
+      return await checkSubscriptionByUserId(user.id);
+    }
+  } catch (err) {
+    console.error('Error in checkSubscriptionByEmail:', err);
+  }
+  
+  return null;
 }
