@@ -43,5 +43,29 @@ export const generatePersonalInfluence = async (
     Use um tom místico, poético e sábio.
   `;
 
+
+    return await chatWithIA(prompt, []);
+};
+
+export const generateDailyForecast = async (
+    destinyNumber: number,
+    destinyMeaning: string,
+    zodiacSign: string
+) => {
+    const prompt = `
+    Como um Guia Estelar e Oráculo de Numerologia Kabbalística, gere uma "Previsão Diária" personalizada para hoje.
+    Dados do Buscador:
+    - Número de Destino: ${destinyNumber} (${destinyMeaning})
+    - Signo: ${zodiacSign}
+
+    A mensagem deve ser:
+    1. Mística, profunda e encorajadora.
+    2. Focar em uma "vibração do dia" específica (ex: clareza, proteção, expansão, colheita).
+    3. Conter um curto conselho prático baseado na energia numerológica.
+    4. Ter no máximo 2 parágrafos curtos.
+    
+    Responda apenas com o texto da previsão, sem introduções ou saudações formais.
+  `;
+
     return await chatWithIA(prompt, []);
 };
