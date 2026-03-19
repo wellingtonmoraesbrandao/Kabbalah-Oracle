@@ -1350,6 +1350,20 @@ const LibraryView = ({
 
   const [showAll, setShowAll] = useState(false);
 
+  const getBookImage = (book: any) => {
+    if (book.image_url) return book.image_url;
+    if (book.image) return book.image;
+    const categoryKeywords: Record<string, string> = {
+      'amor': 'mystical-heart-stars',
+      'prosperidade': 'golden-cosmic-wealth',
+      'numerologia': 'sacred-geometry-numbers',
+      'espiritualidade': 'celestial-spiritual-light',
+      'default': 'mystical-universe-stars'
+    };
+    const keyword = categoryKeywords[book.category?.toLowerCase()] || categoryKeywords['default'];
+    return `https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&auto=format&fit=crop&sig=${book.id || Math.random()}`;
+  };
+
   const handleBookClick = (book: any) => {
     if (!isPremium) {
       onOpenPremium();
@@ -1441,7 +1455,7 @@ const LibraryView = ({
             {filteredBooks.map((book) => (
               <div key={book.id} onClick={() => handleBookClick(book)} className="cursor-pointer group">
                 <div className="aspect-[3/4] rounded-2xl bg-white/5 overflow-hidden mb-3 relative border border-white/10 shadow-2xl">
-                  <img src={book.image_url || book.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={book.title} />
+                    <img src={getBookImage(book)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={book.title} />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent opacity-60"></div>
                   <div className="absolute bottom-3 left-3 right-3">
                     <span className="text-[7px] text-mystic-gold font-black uppercase tracking-widest bg-mystic-primary/60 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-mystic-gold/20 mb-1 inline-block">
@@ -1473,7 +1487,7 @@ const LibraryView = ({
               {filteredBooks.slice(0, 5).map((book) => (
                 <div key={book.id} onClick={() => handleBookClick(book)} className="flex-none w-40 cursor-pointer">
                   <div className="h-56 rounded-2xl bg-white/5 overflow-hidden mb-3 relative group border border-white/10 shadow-2xl">
-                    <img src={book.image_url || book.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={book.title} />
+                  <img src={getBookImage(book)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={book.title} />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent opacity-60"></div>
                     <div className="absolute bottom-3 left-3 right-3">
                       <span className="text-[7px] text-mystic-gold font-black uppercase tracking-widest bg-mystic-gold/20 px-1.5 py-0.5 rounded-full border border-mystic-gold/20 mb-1 inline-block">
@@ -1507,7 +1521,7 @@ const LibraryView = ({
                 <div key={book.id} onClick={() => handleBookClick(book)} className="flex-none w-64 cursor-pointer">
                   <div className="bg-mystic-card p-4 rounded-2xl flex gap-4 border border-slate-800 shadow-xl overflow-hidden">
                     <div className="w-20 h-28 flex-none rounded-lg overflow-hidden border border-slate-700 relative">
-                      <img src={book.image_url || book.image} className="w-full h-full object-cover" alt={book.title} />
+                      <img src={getBookImage(book)} className="w-full h-full object-cover" alt={book.title} />
                       {!isPremium && (
                         <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center rounded-lg">
                           <LockIcon size={14} className="text-mystic-gold" />
@@ -1546,7 +1560,7 @@ const LibraryView = ({
               {latestReleases.map((rel) => (
                 <div key={rel.id} onClick={() => handleBookClick(rel)} className="flex-none w-24 flex flex-col items-center cursor-pointer group">
                   <div className="size-24 rounded-full border-2 border-mystic-primary/40 p-1 ring-4 ring-mystic-primary/5 overflow-hidden mb-2 group-hover:border-mystic-gold/40 transition-all duration-500 relative">
-                    <img src={rel.image_url || rel.image} className="size-full rounded-full object-cover group-hover:scale-125 transition-transform duration-700" alt={rel.title} />
+                    <img src={getBookImage(rel)} className="size-full rounded-full object-cover group-hover:scale-125 transition-transform duration-700" alt={rel.title} />
                     {!isPremium && (
                       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center rounded-full">
                         <LockIcon size={12} className="text-mystic-gold" />
