@@ -81,7 +81,10 @@ export const SubscriptionPlans: React.FC<{
     
     try {
       const { data, error } = await supabase.functions.invoke('direct-login', {
-        body: { email: loginEmail }
+        body: { 
+          email: loginEmail,
+          redirectTo: window.location.origin
+        }
       });
       
       if (error) throw error;
