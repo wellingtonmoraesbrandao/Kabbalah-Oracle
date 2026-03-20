@@ -110,7 +110,7 @@ export const AuthScreen = () => {
 
     return (
         <div className="min-h-screen celestial-bg flex flex-col items-center justify-center p-4 relative overflow-hidden text-slate-200 font-sans">
-            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#112240] rounded-full mix-blend-screen filter blur-[120px] opacity-40 animate-pulse"></div>
+            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#181e26] rounded-full mix-blend-screen filter blur-[120px] opacity-40 animate-pulse"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#d4af37] rounded-full mix-blend-screen filter blur-[120px] opacity-20 animate-pulse delay-1000"></div>
 
             <motion.div
@@ -119,16 +119,29 @@ export const AuthScreen = () => {
                 transition={{ duration: 0.8, ease: "easeOut" }}
                 className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl relative z-10"
             >
-                <div className="flex flex-col items-center mb-8">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#d4af37] to-[#112240] flex items-center justify-center mb-6 shadow-2xl shadow-mystic-gold/20 relative">
-                        <div className="absolute inset-0 rounded-full animate-ping bg-mystic-gold/20"></div>
-                        <Moon size={40} className="text-white relative z-10" />
+                <div className="flex flex-col mb-10 w-full pt-4">
+                    <div className="flex items-center gap-2 mb-8">
+                        <Sparkles className="text-mystic-gold" size={16} />
+                        <span className="text-mystic-gold text-[10px] tracking-[0.2em] font-bold uppercase">
+                            The Sacred Curator
+                        </span>
                     </div>
-                    <h1 className="text-4xl font-black font-display text-transparent bg-clip-text bg-gradient-to-r from-mystic-gold to-white gold-glow">
-                        Kabbalah Oracle
+
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="h-[1px] w-8 bg-mystic-gold/50"></div>
+                        <span className="text-mystic-gold text-xs tracking-[0.15em] font-bold uppercase">
+                            Portal da Sabedoria
+                        </span>
+                    </div>
+                    
+                    <h1 className="text-5xl md:text-6xl font-black font-display text-white leading-[1.1] mb-6 drop-shadow-lg tracking-tight">
+                        Desvende os<br />
+                        Segredos da<br />
+                        <span className="italic text-mystic-gold font-medium font-display tracking-normal pl-1">Alma</span>
                     </h1>
-                    <p className="text-slate-400 text-xs mt-3 text-center uppercase tracking-widest font-bold opacity-60">
-                        Seu guia espiritual pessoal
+                    
+                    <p className="text-slate-300 text-[15px] leading-[1.7] max-w-sm mb-2">
+                        Acesse a sabedoria ancestral da Kabbalah para iluminar seu caminho diário através de insights profundos e conexões espirituais autênticas.
                     </p>
                 </div>
 

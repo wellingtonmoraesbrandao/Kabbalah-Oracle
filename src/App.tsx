@@ -56,7 +56,7 @@ import { fetchLatestWeeklyArticle, generatePersonalInfluence, WeeklyArticle, gen
 import { SubscriptionPlans } from './components/SubscriptionPlan';
 import { getSubscription } from './lib/stripe';
 import { CabalisticTree } from './components/CabalisticTree';
-import { generateFullCabalisticMap } from './lib/cabalisticMap';
+import { generateFullCabalisticMap, calculateCabalisticNumbers } from './lib/cabalisticMap';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -290,7 +290,7 @@ const Navbar = ({ currentView, setView }: { currentView: View, setView: (v: View
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#0a192f]/80 backdrop-blur-2xl border-t border-mystic-gold/10 px-4 pb-8 pt-3 flex justify-around items-center">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#10141a]/80 backdrop-blur-2xl border-t border-mystic-gold/10 px-4 pb-8 pt-3 flex justify-around items-center">
       {navItems.map((item) => (
         <button
           key={item.id}
@@ -308,7 +308,15 @@ const Navbar = ({ currentView, setView }: { currentView: View, setView: (v: View
 
 // --- Views ---
 
-const HomeView = ({ setView, onOpenNotifications, user, isPlaying, dailyForecast, fetchingForecast }: { setView: (v: View) => void, onOpenNotifications: () => void, user: any, isPlaying: boolean, dailyForecast: string, fetchingForecast: boolean }) => (
+const HomeView = ({ setView, onOpenNotifications, user, isPlaying, dailyForecast, fetchingForecast }: { setView: (v: View) => void, onOpenNotifications: () => void, user: any, isPlaying: boolean, dailyForecast: string, fetchingForecast: boolean }) => {
+  const defaultName = user?.user_metadata?.full_name || 'Buscador Espiritual';
+  const defaultDate = user?.user_metadata?.birth_date || '2000-01-01';
+  const cabalisticNums = calculateCabalisticNumbers(defaultName, defaultDate);
+  const destinyNumber = cabalisticNums.destino;
+  const destinyMeaning = user?.user_metadata?.birth_date ? getDestinyMeaning(destinyNumber) : 'Introspecção';
+  const [isCardFlipped, setIsCardFlipped] = useState(false);
+
+  return (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -361,64 +369,117 @@ const HomeView = ({ setView, onOpenNotifications, user, isPlaying, dailyForecast
       </div>
     </header>
 
-    <section className="relative overflow-hidden rounded-[2rem]">
-      <div className="absolute inset-0">
-        <img src="./src/assets/oraculo_bg.jpg" className="w-full h-full object-cover" alt="Oráculo" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a192f]/60 via-[#0a192f]/80 to-[#0a192f]" />
-      </div>
-      <div className="relative z-10 p-6 text-center space-y-4">
-        <div className="flex flex-col items-center gap-1">
-          <h3 className="text-white text-6xl font-black font-display gold-glow-strong">
-            {calculateDestinyNumber(user?.user_metadata?.birth_date) || 7}
-          </h3>
-          <p className="text-mystic-gold text-sm font-bold tracking-widest uppercase">
-            {user?.user_metadata?.birth_date ? getDestinyMeaning(calculateDestinyNumber(user?.user_metadata?.birth_date)) : 'Introspecção'}
-          </p>
-        </div>
-        <div className="text-slate-300 text-xs max-w-[280px] mx-auto leading-relaxed italic opacity-90 min-h-[40px] flex items-center justify-center">
-          {fetchingForecast ? (
-            <div className="flex items-center gap-2 animate-pulse">
-              <Sparkles size={14} className="animate-spin" />
-              <span>Sintonizando...</span>
-            </div>
-          ) : (
-            dailyForecast || (user?.user_metadata?.birth_date
-              ? "Seu número de destino ilumina seu caminho com força e propósito celestial."
-              : "Um dia ideal para o autoconhecimento e a conexão profunda com sua sabedoria anterior.")
-          )}
-        </div>
-        <button
-          onClick={async () => {
-            const destinyNumber = calculateDestinyNumber(user?.user_metadata?.birth_date) || 7;
-            const destinyMeaning = user?.user_metadata?.birth_date ? getDestinyMeaning(destinyNumber) : 'Introspecção';
-            const forecastText = dailyForecast || "Suas visões estão mais nítidas hoje. Siga sua intuição em assuntos profissionais. Um encontro inesperado pode abrir portas.";
-            const shareText = `✨ 🔮 MINHA PREVISÃO ASTRAL 🔮 ✨
-
-🌟 Número do Destino: ${destinyNumber} — ${destinyMeaning}
-
-💫 ${forecastText}
-
-🌙 Compartilhado via Kabbalah Oracle`;
-
-            try {
-              if (navigator.share) {
-                navigator.share({
-                  title: 'Minha Previsão Astral 🔮',
-                  text: shareText
-                }).catch(() => {});
-              } else {
-                await navigator.clipboard.writeText(shareText);
-                alert('Previsão copiada para a área de transferência! ✨');
-              }
-            } catch (err: any) {
-              console.error('Error sharing:', err);
-            }
-          }}
-          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#f9d423] to-[#d4af37] text-[#0a192f] font-black uppercase tracking-wider text-xs shadow-lg shadow-mystic-gold/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+    <section className="flex flex-col items-center justify-center py-6">
+      <div className={`perspective-[1500px] w-[280px] h-[440px] ${!isCardFlipped ? 'cursor-pointer' : ''}`} onClick={() => !fetchingForecast && !isCardFlipped && setIsCardFlipped(true)}>
+        <motion.div
+          className="relative w-full h-full"
+          animate={{ rotateY: isCardFlipped ? 1980 : 0 }}
+          transition={{ duration: 3, ease: 'easeInOut' }}
+          style={{ transformStyle: 'preserve-3d' }}
         >
-          <Share2 size={16} />
-          <span>Compartilhe sua energia com o Mundo</span>
-        </button>
+          {/* Frente da Carta (Design Dark/Gold) */}
+          <div className="absolute inset-0 rounded-[1.5rem] border-2 border-mystic-gold bg-[#10141a] shadow-[0_0_25px_rgba(226,189,91,0.25)] overflow-hidden flex flex-col items-center" style={{ backfaceVisibility: 'hidden' }}>
+            <div className="absolute inset-2 border border-mystic-gold/40 rounded-xl p-4 flex flex-col items-center justify-between">
+              <div className="w-full flex justify-between items-center px-2">
+                <span className="text-mystic-gold text-lg font-display font-bold">ר</span>
+                <span className="text-mystic-gold text-sm tracking-[0.2em] font-display font-bold">XIX</span>
+                <span className="text-mystic-gold text-lg font-display font-bold">ס</span>
+              </div>
+              
+              <div className="relative w-full aspect-square flex items-center justify-center">
+                 {/* Representação Estilizada (Árvore/Sol) */}
+                 <div className="absolute w-32 h-32 rounded-full border-[1px] border-mystic-gold/40 border-dashed animate-[spin_30s_linear_infinite]"></div>
+                 <div className="absolute w-24 h-24 rounded-full border-[0.5px] border-mystic-gold/60"></div>
+                 <div className="absolute w-16 h-16 rounded-full bg-mystic-gold/5 flex items-center justify-center backdrop-blur-sm border border-mystic-gold/80 z-10 shadow-[0_0_15px_rgba(226,189,91,0.4)]">
+                   <Sun size={32} className="text-mystic-gold" />
+                 </div>
+                 
+                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                   <circle cx="50" cy="15" r="4" fill="#e2bd5b" fillOpacity="0.8" />
+                   <circle cx="20" cy="40" r="4" fill="#e2bd5b" fillOpacity="0.8" />
+                   <circle cx="80" cy="40" r="4" fill="#e2bd5b" fillOpacity="0.8" />
+                   <circle cx="50" cy="65" r="4" fill="#e2bd5b" fillOpacity="0.8" />
+                   <circle cx="50" cy="85" r="4" fill="#e2bd5b" fillOpacity="0.8" />
+                   <line x1="50" y1="19" x2="50" y2="61" stroke="#e2bd5b" strokeWidth="0.5" strokeOpacity="0.5" />
+                   <line x1="50" y1="15" x2="20" y2="40" stroke="#e2bd5b" strokeWidth="0.5" strokeOpacity="0.5" />
+                   <line x1="50" y1="15" x2="80" y2="40" stroke="#e2bd5b" strokeWidth="0.5" strokeOpacity="0.5" />
+                   <line x1="20" y1="40" x2="80" y2="40" stroke="#e2bd5b" strokeWidth="0.5" strokeOpacity="0.5" />
+                   <line x1="20" y1="40" x2="50" y2="65" stroke="#e2bd5b" strokeWidth="0.5" strokeOpacity="0.5" />
+                   <line x1="80" y1="40" x2="50" y2="65" stroke="#e2bd5b" strokeWidth="0.5" strokeOpacity="0.5" />
+                   <line x1="50" y1="69" x2="50" y2="81" stroke="#e2bd5b" strokeWidth="0.5" strokeOpacity="0.5" />
+                 </svg>
+              </div>
+
+              <div className="mb-2 w-full animate-pulse text-center flex flex-col space-y-2 z-10">
+                 <p className="text-mystic-gold text-[11px] font-bold tracking-[0.2em] gold-glow uppercase px-2">
+                   Energia do Dia
+                 </p>
+                 <p className="text-mystic-gold/60 text-[9px] tracking-[0.1em] uppercase">
+                   {fetchingForecast ? "Sintonizando Astros..." : "Toque para Revelar"}
+                 </p>
+              </div>
+
+              <div className="w-full flex justify-center pb-1 border-t border-mystic-gold/30 pt-3">
+                <span className="text-mystic-gold text-[9px] tracking-[0.3em] uppercase">The Sun</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Verso da Carta (Conteúdo Revelado) */}
+          <div 
+            className="absolute inset-0 rounded-[1.5rem] border-2 border-mystic-gold bg-[#181e26] shadow-[0_0_30px_rgba(226,189,91,0.2)] flex flex-col items-center p-6 overflow-hidden" 
+            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+          >
+            <div className="absolute inset-0 bg-[url('./assets/celestial_bg.png')] opacity-10 mix-blend-overlay"></div>
+            
+            {/* Ícone de Compartilhar Discreto */}
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                const forecastText = dailyForecast || "O sol ilumina o seu propósito com clareza. Um dia ideal para vitórias.";
+                const shareText = `✨ 🔮 MINHA ENERGIA DO DIA 🔮 ✨\n\n🌟 Destino: ${destinyNumber}\n\n💫 ${forecastText}\n\n🌙 Compartilhado via Kabbalah Oracle`;
+
+                try {
+                  if (navigator.share) {
+                    await navigator.share({ title: 'Minha Previsão Astral 🔮', text: shareText });
+                  } else {
+                    await navigator.clipboard.writeText(shareText);
+                    alert('Previsão copiada para a área de transferência! ✨');
+                  }
+                } catch (err: any) {
+                  console.error('Error sharing:', err);
+                }
+              }}
+              className="absolute top-4 right-4 z-20 text-mystic-gold/60 hover:text-mystic-gold transition-colors p-2"
+              title="Compartilhar Energia"
+            >
+              <Share2 size={18} />
+            </button>
+
+            <div className="relative z-10 w-full flex flex-col items-center flex-1">
+              <h4 className="text-mystic-gold text-[10px] tracking-[0.25em] uppercase font-bold mb-4">Sua Sabedoria</h4>
+              
+              <div className="w-16 h-16 rounded-full border border-mystic-gold flex items-center justify-center bg-[#10141a] mb-2 shadow-inner relative">
+                <div className="absolute -inset-1 border border-mystic-gold/30 rounded-full animate-spin-slow"></div>
+                <span className="text-mystic-gold text-3xl font-display font-black gold-glow">{destinyNumber || 7}</span>
+              </div>
+
+              <div className="flex-1 w-full overflow-y-auto custom-scrollbar px-1 flex items-center justify-center">
+                <p className="text-slate-300 text-[13px] leading-[1.1] mt-0 pb-2 italic text-center drop-shadow-md">
+                  {fetchingForecast ? (
+                    <span className="flex items-center gap-2 animate-pulse justify-center">
+                      <Sparkles size={14} className="text-mystic-gold" /> Captando astrais...
+                    </span>
+                  ) : (
+                    dailyForecast || (user?.user_metadata?.birth_date
+                      ? "O sol ilumina o seu propósito com clareza. Você está no caminho da abundância e vitalidade. Um dia ideal para realizar o que estava planejado."
+                      : "Reflita sobre suas intenções. O sol ilumina novas ideias para o autoconhecimento hoje.")
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </section>
 
@@ -426,9 +487,9 @@ const HomeView = ({ setView, onOpenNotifications, user, isPlaying, dailyForecast
       <h2 className="text-xl font-bold font-display mb-4">Seus Números Core</h2>
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Destino', val: calculateDestinyNumber(user?.user_metadata?.birth_date) || '?', icon: Compass },
-          { label: 'Alma', val: user?.user_metadata?.birth_date ? (calculateDestinyNumber(user.user_metadata.birth_date) * 7) % 9 || 4 : '?', icon: Heart },
-          { label: 'Missão', val: user?.user_metadata?.birth_date ? (calculateDestinyNumber(user.user_metadata.birth_date) * 3) % 9 || 5 : '?', icon: Zap },
+          { label: 'Destino', val: cabalisticNums.destino, icon: Compass },
+          { label: 'Alma', val: cabalisticNums.alma, icon: Heart },
+          { label: 'Missão', val: cabalisticNums.caminhoDeVida, icon: Zap },
         ].map((n: any) => (
           <div key={n.label} className="flex flex-col items-center justify-center p-4 rounded-xl bg-mystic-primary/10 border border-mystic-primary/20">
             <n.icon size={20} className="text-mystic-gold mb-2" fill="currentColor" />
@@ -456,7 +517,8 @@ const HomeView = ({ setView, onOpenNotifications, user, isPlaying, dailyForecast
       );
     })()}
   </motion.div>
-);
+  );
+};
 
 const MapView = ({ user, onOpenNotifications, setView, isPlaying, onOpenTreeMap, isPremium, onOpenPremium }: { user: any, onOpenNotifications: () => void, setView: (v: any) => void, isPlaying: boolean, onOpenTreeMap: () => void, isPremium: boolean, onOpenPremium: () => void }) => {
   const fullName = user?.user_metadata?.full_name || 'Usuário';
@@ -624,8 +686,8 @@ const MapView = ({ user, onOpenNotifications, setView, isPlaying, onOpenTreeMap,
               <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.15" />
             </linearGradient>
             <radialGradient id="nodeGrad" cx="40%" cy="35%" r="60%">
-              <stop offset="0%"   stopColor="#112240" />
-              <stop offset="100%" stopColor="#0a192f" />
+              <stop offset="0%"   stopColor="#181e26" />
+              <stop offset="100%" stopColor="#10141a" />
             </radialGradient>
             <filter id="glow">
               <feGaussianBlur stdDeviation="1.2" result="blur" />
@@ -1909,12 +1971,6 @@ const ProfileView = ({ onBack, setView, guestUser, isPlaying }: { onBack: () => 
               <Mic size={24} />
             </button>
           )}
-          <button
-            onClick={() => alert('Configurações em breve!')}
-            className="text-mystic-gold hover:rotate-90 transition-transform"
-          >
-            <Settings size={24} />
-          </button>
         </div>
       </header>
 
