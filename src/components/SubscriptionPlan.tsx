@@ -14,8 +14,8 @@ interface Price {
   };
 }
 
-export const SubscriptionPlans: React.FC<{ 
-  userEmail?: string; 
+export const SubscriptionPlans: React.FC<{
+  userEmail?: string;
   userName?: string;
   onLoginSuccess?: () => void;
 }> = ({ userEmail, userName, onLoginSuccess }) => {
@@ -55,7 +55,7 @@ export const SubscriptionPlans: React.FC<{
   const handleSubscribe = async (priceId: string) => {
     const email = loginEmail || userEmail;
     if (email) savePremiumEmail(email);
-    
+
     setSubscribing(priceId);
     try {
       await createCheckoutSession(priceId, email, userName);
@@ -69,27 +69,30 @@ export const SubscriptionPlans: React.FC<{
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!loginEmail) {
       setLoginError('Digite seu email');
       return;
     }
-    
+
     setLoginLoading(true);
     setLoginError('');
     setLoginSuccess(false);
-    
+
     try {
+      // Use production URL for redirect to avoid localhost issues
+      const productionUrl = 'https://kabbalah-oraclel.vercel.app';
+
       const { data, error } = await supabase.functions.invoke('direct-login', {
-        body: { 
+        body: {
           email: loginEmail,
-          redirectTo: window.location.origin
+          redirectTo: productionUrl
         }
       });
-      
+
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      
+
       if (data?.url) {
         savePremiumEmail(loginEmail);
         // Supabase will log the user in instantly and redirect them back to the app (Home)
@@ -119,7 +122,7 @@ export const SubscriptionPlans: React.FC<{
         </h3>
         <div className="flex flex-col gap-4">
           {prices.map((price) => (
-            <div 
+            <div
               key={price.id}
               className="relative bg-gradient-to-br from-indigo-900/40 to-purple-900/40 backdrop-blur-xl rounded-xl p-5 border border-white/10 hover:border-indigo-500/50 transition-all"
             >
@@ -128,7 +131,7 @@ export const SubscriptionPlans: React.FC<{
                   Popular
                 </div>
               )}
-              
+
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h4 className="text-base font-bold text-white">{price.products.name}</h4>
@@ -157,7 +160,7 @@ export const SubscriptionPlans: React.FC<{
                 </li>
               </ul>
 
-                <button
+              <button
                 onClick={() => handleSubscribe(price.id)}
                 disabled={subscribing !== null}
                 className="w-full py-3 rounded-lg bg-gradient-to-r from-[#d4af37] to-[#f9d423] hover:from-[#f9d423] hover:to-[#d4af37] text-black font-bold text-sm shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
@@ -182,7 +185,7 @@ export const SubscriptionPlans: React.FC<{
           <User size={14} className="text-mystic-gold" />
           Já sou Assinante
         </h3>
-        
+
         <form onSubmit={handleLogin} className="space-y-3">
           <div>
             <div className="relative">
@@ -208,7 +211,7 @@ export const SubscriptionPlans: React.FC<{
               </p>
             )}
           </div>
-          
+
           <button
             type="submit"
             disabled={loginLoading}
