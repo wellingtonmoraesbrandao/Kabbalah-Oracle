@@ -80,31 +80,23 @@ export const SubscriptionPlans: React.FC<{
     setLoginSuccess(false);
     
     try {
-      const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+      const { data, error } = await supabase.functions.invoke('direct-login', {
+        body: { email: loginEmail }
+      });
       
-      if (listError) throw listError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       
-      const user = users?.find((u: any) => u.email?.toLowerCase() === loginEmail.toLowerCase());
-      
-      if (user) {
-        const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(loginEmail);
-        
-        if (inviteError && inviteError.message !== 'Invite already sent') {
-          throw inviteError;
-        }
-        
-        setLoginSuccess(true);
+      if (data?.url) {
         savePremiumEmail(loginEmail);
-        
-        setTimeout(() => {
-          if (onLoginSuccess) onLoginSuccess();
-        }, 2000);
+        // Supabase will log the user in instantly and redirect them back to the app (Home)
+        window.location.href = data.url;
       } else {
-        setLoginError('Este email não está cadastrado. Assine primeiro para criar sua conta.');
+        throw new Error('Falha ao gerar o acesso direto.');
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      setLoginError('Erro ao fazer login. Tente novamente.');
+      setLoginError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoginLoading(false);
     }

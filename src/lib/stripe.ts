@@ -77,22 +77,8 @@ async function checkSubscriptionByUserId(userId: string) {
 }
 
 async function checkSubscriptionByEmail(email: string) {
-  try {
-    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
-    
-    if (listError) {
-      console.error('Error fetching users:', listError);
-      return null;
-    }
-    
-    const user = users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
-    
-    if (user) {
-      return await checkSubscriptionByUserId(user.id);
-    }
-  } catch (err) {
-    console.error('Error in checkSubscriptionByEmail:', err);
-  }
-  
+  // The client side cannot use supabase.auth.admin APIs.
+  // We rely on the user authenticating via magic link (OTP) 
+  // which will provide an authenticated session and user.id.
   return null;
 }

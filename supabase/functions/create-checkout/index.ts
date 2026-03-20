@@ -59,7 +59,7 @@ serve(async (req) => {
     const sessionOptions: any = {
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${req.headers.get("origin")}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `https://bvtkplkxlgqqwikfuoya.supabase.co/functions/v1/stripe-callback?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/payment/cancel`,
       allow_promotion_codes: true,
     };
