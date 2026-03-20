@@ -42,7 +42,7 @@ serve(async (req) => {
         .from("customers")
         .select("stripe_customer_id")
         .single();
-      
+
       stripeCustomerId = customerData?.stripe_customer_id;
 
       if (!stripeCustomerId) {
@@ -56,11 +56,14 @@ serve(async (req) => {
       }
     }
 
+    // Production site URL for redirects
+    const productionUrl = "https://kabbalah-oraclel.vercel.app";
+
     const sessionOptions: any = {
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `https://bvtkplkxlgqqwikfuoya.supabase.co/functions/v1/stripe-callback?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/payment/cancel`,
+      success_url: `${productionUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${productionUrl}/?checkout=cancelled`,
       allow_promotion_codes: true,
     };
 

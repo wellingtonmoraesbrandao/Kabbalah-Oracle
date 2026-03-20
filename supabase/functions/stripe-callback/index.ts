@@ -6,8 +6,8 @@ serve(async (req) => {
   const url = new URL(req.url);
   const sessionId = url.searchParams.get("session_id");
 
-  // Fallback URL if something fails
-  const origin = req.headers.get("origin") || Deno.env.get("PUBLIC_SITE_URL") || "http://localhost:5173";
+  // Production site URL - use this for all redirects back to the app
+  const productionUrl = "https://kabbalah-oraclel.vercel.app";
 
   if (!sessionId) {
     return Response.redirect(`${origin}?error=no_session_id`, 302);
@@ -24,7 +24,7 @@ serve(async (req) => {
     const name = session.customer_details?.name;
 
     if (!email) {
-      return Response.redirect(`${origin}?error=no_email`, 302);
+      return Response.redirect(`${productionUrl}?error=no_email`, 302);
     }
 
     const supabaseAdmin = createClient(
@@ -39,19 +39,19 @@ serve(async (req) => {
     let userExists = users.some((u) => u.email === email);
 
     if (!userExists) {
-        // Create user
-        await supabaseAdmin.auth.admin.createUser({
-            email,
-            email_confirm: true,
-            user_metadata: { full_name: name || "Usuário Premium" }
-        });
+      // Create user
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: { full_name: name || "Usuário Premium" }
+      });
     }
 
-    // Generate action link
+    // Generate action link - always redirect to production URL, not origin (which is Supabase URL)
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: "magiclink",
       email: email,
-      options: { redirectTo: origin }
+      options: { redirectTo: productionUrl }
     });
 
     if (linkError) throw linkError;
@@ -60,6 +60,6 @@ serve(async (req) => {
     return Response.redirect(linkData.properties.action_link, 302);
   } catch (err: any) {
     console.error("Stripe Callback error:", err.message);
-    return Response.redirect(`${origin}?error=callback_failed`, 302);
+    return Response.redirect(`${productionUrl}?error=callback_failed`, 302);
   }
 });

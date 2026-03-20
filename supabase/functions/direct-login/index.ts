@@ -39,10 +39,12 @@ serve(async (req) => {
     }
 
     // Generate the magic link (action link logs the user in when visited)
+    // Use production URL to ensure redirects go to the correct site, not localhost
+    const productionUrl = 'https://kabbalah-oraclel.vercel.app';
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: email,
-      options: { redirectTo: redirectTo || Deno.env.get('PUBLIC_SITE_URL') }
+      options: { redirectTo: redirectTo || productionUrl }
     });
 
     if (linkError) throw linkError;
