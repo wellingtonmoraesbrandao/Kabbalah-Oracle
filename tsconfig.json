@@ -9,9 +9,6 @@
       "DOM",
       "DOM.Iterable"
     ],
-    "types": [
-      "vite/client"
-    ],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "isolatedModules": true,
@@ -25,5 +22,13 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "supabase",
+    "scripts",
+    "node_modules"
+  ]
 }
