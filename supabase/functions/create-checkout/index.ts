@@ -62,7 +62,7 @@ serve(async (req) => {
     const sessionOptions: any = {
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${productionUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${productionUrl}/stripe-callback?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${productionUrl}/?checkout=cancelled`,
       allow_promotion_codes: true,
     };

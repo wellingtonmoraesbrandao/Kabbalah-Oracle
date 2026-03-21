@@ -82,7 +82,7 @@ serve(async (req) => {
 
           if (customerData) {
             supabaseUserId = customerData.id;
-            
+
             // Update user metadata with email and name if provided
             if (customerEmail || customerName) {
               await supabaseAdmin.auth.admin.updateUserById(supabaseUserId, {
@@ -97,12 +97,12 @@ serve(async (req) => {
             // 2. If not linked, check if user exists by email
             const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
             if (listError) throw listError;
-            
+
             const existingUser = users.find(u => u.email === customerEmail);
-            
+
             if (existingUser) {
               supabaseUserId = existingUser.id;
-              
+
               // Update user metadata with name if provided
               if (customerName) {
                 await supabaseAdmin.auth.admin.updateUserById(supabaseUserId, {
@@ -110,14 +110,15 @@ serve(async (req) => {
                 });
               }
             } else {
-              // 3. Create a new user and invite them (sends magic link)
-              const { data: { user: newUser }, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(customerEmail, {
-                data: { 
-                  full_name: customerName || 'Usuário Premium',
-                  email: customerEmail
+              // 3. Create a new user directly (no email sent)
+              const { data: { user: newUser }, error: createError } = await supabaseAdmin.auth.admin.createUser({
+                email: customerEmail,
+                email_confirm: true,
+                user_metadata: {
+                  full_name: customerName || 'Assinante Premium',
                 }
               });
-              if (inviteError) throw inviteError;
+              if (createError) throw createError;
               supabaseUserId = newUser.id;
             }
 
