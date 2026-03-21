@@ -80,23 +80,31 @@ export const SubscriptionPlans: React.FC<{
     setLoginSuccess(false);
 
     try {
-      // Use production URL for redirect to avoid localhost issues
-      const productionUrl = 'https://kabbalah-oraclel.vercel.app';
-
       const { data, error } = await supabase.functions.invoke('direct-login', {
         body: {
-          email: loginEmail,
-          redirectTo: productionUrl
+          email: loginEmail.toLowerCase(),
         }
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      if (data?.url) {
-        savePremiumEmail(loginEmail);
-        // Supabase will log the user in instantly and redirect them back to the app (Home)
-        window.location.href = data.url;
+      if (data?.success && data?.access_token) {
+        savePremiumEmail(loginEmail.toLowerCase());
+
+        // Set the session in Supabase client to log user in immediately
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+
+        if (sessionError) throw sessionError;
+
+        // Success - the AuthContext will detect the session change and update the UI
+        setLoginSuccess(true);
+        setTimeout(() => {
+          if (onLoginSuccess) onLoginSuccess();
+        }, 500);
       } else {
         throw new Error('Falha ao gerar o acesso direto.');
       }
@@ -207,7 +215,7 @@ export const SubscriptionPlans: React.FC<{
             {loginSuccess && (
               <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
                 <Check className="w-3 h-3" />
-                Email de acesso enviado! Verifique sua caixa de entrada.
+                Login realizado com sucesso! Bem-vindo(a)!
               </p>
             )}
           </div>
