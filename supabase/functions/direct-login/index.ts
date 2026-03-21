@@ -10,22 +10,25 @@ const corsHeaders = {
 
 // Helper to create a JWT access token for a user
 async function createJWT(userId: string, userEmail: string): Promise<string> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const jwtSecret = Deno.env.get('SUPABASE_JWT_SECRET') ?? '';
 
   if (!jwtSecret) {
-    throw new Error('SUPABASE_JWT_SECRET is not configured in Edge Function environment');
+    throw new Error('SUPABASE_JWT_SECRET is not configured');
   }
+
+  // Extract project ID from URL for the aud claim
+  const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
   const header = { alg: 'HS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
   const payload = {
     sub: userId,
-    aud: 'authenticated',
+    aud: projectId, // Use project ID as audience
     exp: now + 3600, // 1 hour
     iat: now,
     email: userEmail,
     role: 'authenticated',
-    amr: [{ method: 'stripe', timestamp: now }],
   };
 
   const encodedHeader = encodeBase64Url(new TextEncoder().encode(JSON.stringify(header)));
@@ -233,7 +236,7 @@ serve(async (req) => {
       }
     }
 
-    // 6. Generate JWT access token and refresh token directly
+    // 6. Generate JWT access token and refresh token
     const userEmail = user?.email ?? email.toLowerCase();
     const accessToken = await createJWT(userId, userEmail);
     const refreshToken = await createRefreshToken();

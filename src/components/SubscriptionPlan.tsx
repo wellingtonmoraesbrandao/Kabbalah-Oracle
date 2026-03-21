@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { createCheckoutSession, getSavedPremiumEmail, savePremiumEmail } from '../lib/stripe';
-import { Check, Sparkles, Mail, User, LogIn, AlertCircle, Send } from 'lucide-react';
+import { Check, Sparkles, Mail, User, LogIn, AlertCircle, Send, Loader2 } from 'lucide-react';
 
 interface Price {
   id: string;
@@ -28,8 +28,6 @@ export const SubscriptionPlans: React.FC<{
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginSuccess, setLoginSuccess] = useState(false);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
 
   useEffect(() => {
     fetchPrices();
@@ -71,7 +69,7 @@ export const SubscriptionPlans: React.FC<{
     }
   };
 
-  const handleMagicLinkLogin = async (e: React.FormEvent) => {
+  const handleInstantLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!loginEmail) {
@@ -89,69 +87,50 @@ export const SubscriptionPlans: React.FC<{
     setLoginLoading(true);
     setLoginError('');
     setLoginSuccess(false);
-    setMagicLinkSent(false);
-    setIsCheckingSubscription(true);
 
     try {
-      // Try to check if user has active subscription
-      let hasActiveSubscription: boolean | null = null;
-
-      try {
-        const { data, error } = await supabase.functions.invoke('check-subscription', {
-          body: { email: loginEmail.toLowerCase() }
-        });
-
-        if (error) {
-          console.warn('Check subscription invoke error (will try magic link anyway):', error);
-          hasActiveSubscription = null; // Will try magic link anyway
-        } else if (data?.hasActiveSubscription === false) {
-          hasActiveSubscription = false;
-        } else if (data?.hasActiveSubscription === true) {
-          hasActiveSubscription = true;
-        }
-      } catch (checkErr) {
-        console.warn('Subscription check failed (will try magic link anyway):', checkErr);
-        hasActiveSubscription = null; // Will try magic link anyway
-      }
-
-      setIsCheckingSubscription(false);
-
-      // If we confirmed no subscription, show error
-      if (hasActiveSubscription === false) {
-        setLoginError('Nenhuma assinatura ativa encontrada para este email. Assine primeiro!');
-        return;
-      }
-
-      // Send magic link - this works for both confirmed subscribers and guests
-      // If they don't have subscription, they'll get an error after clicking the link
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email: loginEmail.toLowerCase(),
-        options: {
-          emailRedirectTo: `${window.location.origin}/?welcome=true`,
-        },
+      // Call direct-login edge function for instant login with JWT tokens
+      const { data, error } = await supabase.functions.invoke('direct-login', {
+        body: { email: loginEmail.toLowerCase() }
       });
 
-      if (signInError) {
-        // Check if it's a "user not found" type error which is expected for non-subscribers
-        if (signInError.message.includes('not found') || signInError.message.includes('invite')) {
-          setLoginError('Você ainda não tem uma conta. Assine primeiro para criar sua conta!');
-        } else {
-          throw signInError;
-        }
-        return;
+      if (error) {
+        console.error('Direct login invoke error:', error);
+        throw new Error('Erro ao conectar. Tente novamente.');
       }
 
-      // Show success message
-      setMagicLinkSent(true);
-      setLoginSuccess(true);
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      if (!data?.success || !data?.access_token || !data?.refresh_token) {
+        throw new Error('Erro ao gerar acesso. Tente novamente.');
+      }
+
+      // Set the session in Supabase client to log user in immediately
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      });
+
+      if (sessionError) {
+        console.error('Session set error:', sessionError);
+        throw new Error('Erro ao fazer login. Tente novamente.');
+      }
+
       savePremiumEmail(loginEmail.toLowerCase());
+      setLoginSuccess(true);
+
+      // Call success callback after a short delay
+      setTimeout(() => {
+        if (onLoginSuccess) onLoginSuccess();
+      }, 500);
 
     } catch (err: any) {
       console.error('Login error:', err);
       setLoginError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoginLoading(false);
-      setIsCheckingSubscription(false);
     }
   };
 
@@ -226,15 +205,25 @@ export const SubscriptionPlans: React.FC<{
         </div>
       </div>
 
-      {/* Login para Assinantes */}
+      {/* Login para Assinantes - Instant Login */}
       <div className="border-t border-white/10 pt-5">
         <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
           <User size={14} className="text-mystic-gold" />
           Já sou Assinante
         </h3>
 
-        {!magicLinkSent ? (
-          <form onSubmit={handleMagicLinkLogin} className="space-y-3">
+        {loginSuccess ? (
+          <div className="text-center py-4">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <Check className="w-6 h-6 text-emerald-400" />
+            </div>
+            <h4 className="text-white font-bold mb-1">Login Realizado!</h4>
+            <p className="text-xs text-gray-400">
+              Bem-vindo(a)! Aproveite seu conteúdo premium.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleInstantLogin} className="space-y-3">
             <div>
               <div className="relative">
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -244,7 +233,6 @@ export const SubscriptionPlans: React.FC<{
                   onChange={(e) => {
                     setLoginEmail(e.target.value);
                     setLoginError('');
-                    setMagicLinkSent(false);
                   }}
                   placeholder="Seu email cadastrado"
                   className="w-full bg-mystic-bg/50 border border-mystic-primary/30 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-mystic-gold outline-none"
@@ -264,29 +252,22 @@ export const SubscriptionPlans: React.FC<{
               className="w-full py-2.5 rounded-lg bg-mystic-primary/30 hover:bg-mystic-primary/50 border border-mystic-primary/30 text-mystic-gold font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loginLoading ? (
-                <div className="w-4 h-4 border-2 border-mystic-gold/30 border-t-mystic-gold rounded-full animate-spin" />
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Entrando...
+                </>
               ) : (
                 <>
-                  <Send size={16} />
-                  {isCheckingSubscription ? 'Verificando...' : 'Enviar Link de Acesso'}
+                  <LogIn size={16} />
+                  Entrar Agora
                 </>
               )}
             </button>
 
             <p className="text-xs text-gray-500 text-center">
-              Enviaremos um link de acesso para seu email
+              Login instantâneo para assinantes
             </p>
           </form>
-        ) : (
-          <div className="text-center py-4">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-500/20 flex items-center justify-center">
-              <Check className="w-6 h-6 text-emerald-400" />
-            </div>
-            <h4 className="text-white font-bold mb-1">Link Enviado!</h4>
-            <p className="text-xs text-gray-400">
-              Verifique seu email <span className="text-mystic-gold">{loginEmail}</span> e clique no link para acessar sua conta.
-            </p>
-          </div>
         )}
       </div>
     </div>
