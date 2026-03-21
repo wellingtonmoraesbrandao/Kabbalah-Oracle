@@ -296,6 +296,36 @@ export const SubscriptionPlans: React.FC<{
             <p className="text-xs text-gray-500 text-center">
               Login instantâneo para assinantes
             </p>
+
+            <button
+              type="button"
+              onClick={async () => {
+                if (!loginEmail) {
+                  setLoginError('Digite seu email primeiro');
+                  return;
+                }
+                setLoginLoading(true);
+                setLoginError('');
+                try {
+                  const { error } = await supabase.auth.signInWithOtp({
+                    email: loginEmail.toLowerCase(),
+                    options: {
+                      emailRedirectTo: window.location.origin,
+                    }
+                  });
+                  if (error) throw error;
+                  alert('Link de acesso enviado! Verifique seu email.');
+                } catch (err: any) {
+                  console.error('Magic link error:', err);
+                  setLoginError(err.message || 'Erro ao enviar link.');
+                } finally {
+                  setLoginLoading(false);
+                }
+              }}
+              className="w-full py-2 text-xs text-gray-400 hover:text-gray-300 transition-colors"
+            >
+              Problemas? Enviar link por email
+            </button>
           </form>
         )}
       </div>
