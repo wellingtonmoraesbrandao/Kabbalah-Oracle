@@ -38,7 +38,8 @@ import {
   Repeat,
   Volume2,
   RefreshCw,
-  Music
+  Music,
+  Quote
 } from 'lucide-react';
 
 import { supabase } from './lib/supabase';
@@ -57,6 +58,7 @@ import { SubscriptionPlans } from './components/SubscriptionPlan';
 import { getSubscription } from './lib/stripe';
 import { CabalisticTree } from './components/CabalisticTree';
 import { generateFullCabalisticMap, calculateCabalisticNumbers } from './lib/cabalisticMap';
+import { toPng } from 'html-to-image';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -315,6 +317,8 @@ const HomeView = ({ setView, onOpenNotifications, user, isPlaying, dailyForecast
   const destinyNumber = cabalisticNums.destino;
   const destinyMeaning = user?.user_metadata?.birth_date ? getDestinyMeaning(destinyNumber) : 'Introspecção';
   const [isCardFlipped, setIsCardFlipped] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   return (
   <motion.div
@@ -427,33 +431,73 @@ const HomeView = ({ setView, onOpenNotifications, user, isPlaying, dailyForecast
 
           {/* Verso da Carta (Conteúdo Revelado) */}
           <div 
+            ref={cardRef}
             className="absolute inset-0 rounded-[1.5rem] border-2 border-mystic-gold bg-[#181e26] shadow-[0_0_30px_rgba(226,189,91,0.2)] flex flex-col items-center p-6 overflow-hidden" 
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
-            <div className="absolute inset-0 bg-[url('./assets/celestial_bg.png')] opacity-10 mix-blend-overlay"></div>
+            <div className="absolute inset-0 bg-[url('./assets/oracle_mystic_bg.jpeg')] opacity-10 mix-blend-overlay"></div>
             
-            {/* Ícone de Compartilhar Discreto */}
+            {/* Botão de Compartilhar (Gera Imagem) */}
             <button
               onClick={async (e) => {
                 e.stopPropagation();
-                const forecastText = dailyForecast || "O sol ilumina o seu propósito com clareza. Um dia ideal para vitórias.";
+                if (isGeneratingImage) return;
+
+                const forecastText = dailyForecast || "O sol ilumina seu caminho hoje. Confie na sua intuição e brilhe.";
                 const shareText = `✨ 🔮 MINHA ENERGIA DO DIA 🔮 ✨\n\n🌟 Destino: ${destinyNumber}\n\n💫 ${forecastText}\n\n🌙 Compartilhado via Kabbalah Oracle`;
 
+                if (!cardRef.current) return;
+
                 try {
-                  if (navigator.share) {
-                    await navigator.share({ title: 'Minha Previsão Astral 🔮', text: shareText });
+                  setIsGeneratingImage(true);
+                  
+                  // Gerar imagem do Card
+                  const dataUrl = await toPng(cardRef.current, {
+                    cacheBust: true,
+                    backgroundColor: '#181e26',
+                    style: {
+                      transform: 'scale(1)',
+                      borderRadius: '1.5rem'
+                    }
+                  });
+
+                  // Converter dataUrl para Blob
+                  const blob = await (await fetch(dataUrl)).blob();
+                  const file = new File([blob], 'meu-destino-hoje.png', { type: 'image/png' });
+
+                  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                      title: 'Minha Previsão Astral 🔮',
+                      text: shareText,
+                      files: [file]
+                    });
                   } else {
-                    await navigator.clipboard.writeText(shareText);
-                    alert('Previsão copiada para a área de transferência! ✨');
+                    // Fallback para download se não houver navigator.share compatible
+                    const link = document.createElement('a');
+                    link.download = 'meu-destino-hoje.png';
+                    link.href = dataUrl;
+                    link.click();
+                    alert('Imagem gerada! Compartilhe agora com seus amigos. ✨');
                   }
                 } catch (err: any) {
-                  console.error('Error sharing:', err);
+                  console.error('Error sharing image:', err);
+                  // Fallback para texto se falhar
+                  if (navigator.share) {
+                    await navigator.share({ title: 'Minha Previsão Astral 🔮', text: shareText });
+                  }
+                } finally {
+                  setIsGeneratingImage(false);
                 }
               }}
-              className="absolute top-4 right-4 z-20 text-mystic-gold/60 hover:text-mystic-gold transition-colors p-2"
+              className="absolute top-4 right-4 z-20 text-mystic-gold/60 hover:text-mystic-gold transition-all p-2 bg-mystic-gold/5 rounded-full border border-mystic-gold/10 flex items-center justify-center min-w-[36px] min-h-[36px]"
               title="Compartilhar Energia"
+              disabled={isGeneratingImage}
             >
-              <Share2 size={18} />
+              {isGeneratingImage ? (
+                <RefreshCw size={18} className="animate-spin" />
+              ) : (
+                <Share2 size={18} />
+              )}
             </button>
 
             <div className="relative z-10 w-full flex flex-col items-center flex-1">
@@ -464,18 +508,29 @@ const HomeView = ({ setView, onOpenNotifications, user, isPlaying, dailyForecast
                 <span className="text-mystic-gold text-3xl font-display font-black gold-glow">{destinyNumber || 7}</span>
               </div>
 
-              <div className="flex-1 w-full overflow-y-auto custom-scrollbar px-1 flex items-center justify-center">
-                <p className="text-slate-300 text-[13px] leading-[1.1] mt-0 pb-2 italic text-center drop-shadow-md">
+              <div className="flex-1 w-full flex flex-col items-center justify-center px-2 py-4 relative">
+                <div className="absolute top-2 left-4 opacity-20 text-mystic-gold">
+                  <Quote size={20} fill="currentColor" />
+                </div>
+                
+                <p className="text-slate-100 text-[14px] leading-relaxed font-medium text-center drop-shadow-md relative z-10 px-4">
                   {fetchingForecast ? (
                     <span className="flex items-center gap-2 animate-pulse justify-center">
                       <Sparkles size={14} className="text-mystic-gold" /> Captando astrais...
                     </span>
                   ) : (
-                    dailyForecast || (user?.user_metadata?.birth_date
-                      ? "O sol ilumina o seu propósito com clareza. Você está no caminho da abundância e vitalidade. Um dia ideal para realizar o que estava planejado."
-                      : "Reflita sobre suas intenções. O sol ilumina novas ideias para o autoconhecimento hoje.")
+                    (dailyForecast?.slice(0, 200) || (user?.user_metadata?.birth_date
+                      ? "O sol ilumina seu caminho hoje. Confie na sua intuição e brilhe."
+                      : "Sintonize-se com a luz interior. Novas descobertas aguardam você."))
                   )}
                 </p>
+
+                <div className="mt-4 flex flex-col items-center gap-1 opacity-60">
+                  <div className="w-8 h-[0.5px] bg-mystic-gold/50"></div>
+                  <span className="text-[10px] uppercase tracking-[0.2em] font-black text-mystic-gold italic">
+                    - Oráculo
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -851,7 +906,7 @@ const ChatView = ({ onOpenNotifications, setView, isPlaying, isPremium, onOpenPr
       {/* Background Image Container */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <img 
-          src="/src/assets/oracle_chat_bg.png" 
+          src="/src/assets/oracle_mystic_bg.jpeg" 
           className="w-full h-full object-cover opacity-20 transform scale-105" 
           alt="Chat Background" 
         />

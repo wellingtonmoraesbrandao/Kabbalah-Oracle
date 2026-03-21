@@ -79,12 +79,13 @@ export const generateDailyForecast = async (
     - Signo: ${zodiacSign}
 
     A mensagem deve ser:
-    1. Mística, profunda e encorajadora.
-    2. Focar em uma "vibração do dia" específica (ex: clareza, proteção, expansão, colheita).
-    3. Conter um curto conselho prático baseado na energia numerológica.
-    4. Ter no máximo 2 parágrafos curtos.
+    1. EXTREMAMENTE CURTA (MÁXIMO 150 CARACTERES).
+    2. Uma única frase potente e direta que gere bem-estar imediato.
+    3. NUNCA gere textos longos ou parágrafos. Apenas UMA FRASE CURTA.
+
     
-    Responda apenas com o texto da previsão, sem introduções ou saudações formais.
+    Responda APENAS com o texto da previsão, sem aspas, sem introduções e sem saudações.
+
   `;
 
     return await chatWithIA(prompt, []);

@@ -206,10 +206,20 @@ serve(async (req) => {
       throw linkError;
     }
 
+    console.log('Link generated successfully. Properties:', JSON.stringify(linkData.properties));
+
+    // Get the token hash - try multiple possible fields just in case
+    const tokenHash = linkData.properties?.token_hash || linkData.properties?.hashed_token;
+    
+    if (!tokenHash) {
+      console.error('No token_hash found in linkData properties:', linkData.properties);
+      throw new Error('Verify requires either a token or a token hash (internal error)');
+    }
+
     // Immediately verify the OTP token hash to create a session
     console.log('Verifying OTP token hash for instant login...');
     const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.verifyOtp({
-      token_hash: linkData.properties.token_hash,
+      token_hash: tokenHash,
       type: 'magiclink',
     });
 
