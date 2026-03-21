@@ -1,11 +1,56 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import Stripe from "https://esm.sh/stripe@14.16.0?target=deno";
+import { encodeBase64Url } from "https://deno.land/std@0.190.0/encoding/base64url.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Helper to create a JWT access token for a user
+async function createJWT(userId: string, userEmail: string): Promise<string> {
+  const jwtSecret = Deno.env.get('SUPABASE_JWT_SECRET') ?? '';
+
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    sub: userId,
+    aud: 'authenticated',
+    exp: now + 3600, // 1 hour
+    iat: now,
+    email: userEmail,
+    role: 'authenticated',
+    amr: [{ method: 'stripe', timestamp: now }],
+  };
+
+  const encodedHeader = encodeBase64Url(new TextEncoder().encode(JSON.stringify(header)));
+  const encodedPayload = encodeBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(jwtSecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
+  );
+
+  const encodedSignature = encodeBase64Url(new Uint8Array(signature));
+  return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
+}
+
+// Helper to create a refresh token
+async function createRefreshToken(): Promise<string> {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return encodeBase64Url(bytes);
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -183,9 +228,11 @@ serve(async (req) => {
       }
     }
 
-    // 6. Generate a session token directly (no magic link needed)
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession(userId);
-    if (sessionError) throw sessionError;
+    // 6. Generate JWT access token and refresh token directly
+    const userEmail = user?.email ?? email.toLowerCase();
+    const accessToken = await createJWT(userId, userEmail);
+    const refreshToken = await createRefreshToken();
+    const expiresAt = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
 
     // Return the session tokens so frontend can log in immediately
     return new Response(JSON.stringify({
@@ -193,12 +240,12 @@ serve(async (req) => {
       isNewUser,
       user: {
         id: userId,
-        email: email.toLowerCase(),
+        email: userEmail,
         full_name: customerData?.name || user?.user_metadata?.full_name || 'Assinante Premium',
       },
-      access_token: sessionData.session?.access_token,
-      refresh_token: sessionData.session?.refresh_token,
-      expires_at: sessionData.session?.expires_at,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_at: expiresAt,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
