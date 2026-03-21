@@ -184,7 +184,7 @@ serve(async (req) => {
     }
 
     // 6. Generate a session token directly (no magic link needed)
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.generateSession(userId);
+    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession(userId);
     if (sessionError) throw sessionError;
 
     // Return the session tokens so frontend can log in immediately
