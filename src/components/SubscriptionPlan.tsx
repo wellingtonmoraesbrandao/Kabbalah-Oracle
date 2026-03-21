@@ -100,10 +100,17 @@ export const SubscriptionPlans: React.FC<{
       }
 
       if (data?.error) {
+        console.error('Direct login data.error:', data.error);
         throw new Error(data.error);
       }
 
       if (!data?.success || !data?.access_token || !data?.refresh_token) {
+        console.error('Direct login missing success/token:', {
+          success: data?.success,
+          hasAccessToken: !!data?.access_token,
+          hasRefreshToken: !!data?.refresh_token,
+          fullData: data
+        });
         throw new Error('Erro ao gerar acesso. Tente novamente.');
       }
 

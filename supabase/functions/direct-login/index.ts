@@ -238,7 +238,9 @@ serve(async (req) => {
 
     // 6. Generate JWT access token and refresh token
     const userEmail = user?.email ?? email.toLowerCase();
+    console.log('Creating JWT for user:', userId, userEmail);
     const accessToken = await createJWT(userId, userEmail);
+    console.log('JWT created successfully');
     const refreshToken = await createRefreshToken();
     const expiresAt = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
 
