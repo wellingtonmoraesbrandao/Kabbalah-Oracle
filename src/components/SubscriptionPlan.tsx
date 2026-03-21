@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { createCheckoutSession, getSavedPremiumEmail, savePremiumEmail } from '../lib/stripe';
-import { Check, Sparkles, Mail, User, LogIn } from 'lucide-react';
+import { Check, Sparkles, Mail, User, LogIn, AlertCircle, Send } from 'lucide-react';
 
 interface Price {
   id: string;
@@ -22,10 +22,13 @@ export const SubscriptionPlans: React.FC<{
   const [prices, setPrices] = useState<Price[]>([]);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<string | null>(null);
+
+  // Login form state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginSuccess, setLoginSuccess] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   useEffect(() => {
     fetchPrices();
@@ -67,7 +70,69 @@ export const SubscriptionPlans: React.FC<{
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleMagicLinkLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!loginEmail) {
+      setLoginError('Digite seu email');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(loginEmail)) {
+      setLoginError('Digite um email válido');
+      return;
+    }
+
+    setLoginLoading(true);
+    setLoginError('');
+    setLoginSuccess(false);
+    setMagicLinkSent(false);
+
+    try {
+      // Check if user has active subscription first by calling our edge function
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        body: { email: loginEmail.toLowerCase() }
+      });
+
+      if (error) {
+        throw new Error('Erro ao verificar assinatura. Tente novamente.');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      if (!data?.hasActiveSubscription) {
+        throw new Error('Nenhuma assinatura ativa encontrada para este email. Assine primeiro!');
+      }
+
+      // User has active subscription - send magic link for instant login
+      // The magic link will redirect back to the app and log them in
+      const { error: signInError } = await supabase.auth.signInWithOtp({
+        email: loginEmail.toLowerCase(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/?welcome=true`,
+        },
+      });
+
+      if (signInError) throw signInError;
+
+      // Show success message
+      setMagicLinkSent(true);
+      setLoginSuccess(true);
+      savePremiumEmail(loginEmail.toLowerCase());
+
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setLoginError(err.message || 'Erro ao fazer login. Tente novamente.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleGuestLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!loginEmail) {
@@ -78,38 +143,24 @@ export const SubscriptionPlans: React.FC<{
     setLoginLoading(true);
     setLoginError('');
     setLoginSuccess(false);
+    setMagicLinkSent(false);
 
     try {
-      const { data, error } = await supabase.functions.invoke('direct-login', {
-        body: {
-          email: loginEmail.toLowerCase(),
-        }
+      // For guest users (no subscription), send magic link for newsletter/free content
+      const { error: signInError } = await supabase.auth.signInWithOtp({
+        email: loginEmail.toLowerCase(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/?welcome=true`,
+        },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (signInError) throw signInError;
 
-      if (data?.success && data?.access_token) {
-        savePremiumEmail(loginEmail.toLowerCase());
+      setMagicLinkSent(true);
+      setLoginSuccess(true);
 
-        // Set the session in Supabase client to log user in immediately
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-        });
-
-        if (sessionError) throw sessionError;
-
-        // Success - the AuthContext will detect the session change and update the UI
-        setLoginSuccess(true);
-        setTimeout(() => {
-          if (onLoginSuccess) onLoginSuccess();
-        }, 500);
-      } else {
-        throw new Error('Falha ao gerar o acesso direto.');
-      }
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('Guest login error:', err);
       setLoginError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoginLoading(false);
@@ -194,47 +245,61 @@ export const SubscriptionPlans: React.FC<{
           Já sou Assinante
         </h3>
 
-        <form onSubmit={handleLogin} className="space-y-3">
-          <div>
-            <div className="relative">
-              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input
-                type="email"
-                value={loginEmail}
-                onChange={(e) => {
-                  setLoginEmail(e.target.value);
-                  setLoginError('');
-                }}
-                placeholder="Seu email cadastrado"
-                className="w-full bg-mystic-bg/50 border border-mystic-primary/30 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-mystic-gold outline-none"
-              />
+        {!magicLinkSent ? (
+          <form onSubmit={handleMagicLinkLogin} className="space-y-3">
+            <div>
+              <div className="relative">
+                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => {
+                    setLoginEmail(e.target.value);
+                    setLoginError('');
+                    setMagicLinkSent(false);
+                  }}
+                  placeholder="Seu email cadastrado"
+                  className="w-full bg-mystic-bg/50 border border-mystic-primary/30 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-mystic-gold outline-none"
+                />
+              </div>
+              {loginError && (
+                <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                  <AlertCircle size={12} />
+                  {loginError}
+                </p>
+              )}
             </div>
-            {loginError && (
-              <p className="text-xs text-red-400 mt-1">{loginError}</p>
-            )}
-            {loginSuccess && (
-              <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-                <Check className="w-3 h-3" />
-                Login realizado com sucesso! Bem-vindo(a)!
-              </p>
-            )}
-          </div>
 
-          <button
-            type="submit"
-            disabled={loginLoading}
-            className="w-full py-2.5 rounded-lg bg-mystic-primary/30 hover:bg-mystic-primary/50 border border-mystic-primary/30 text-mystic-gold font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loginLoading ? (
-              <div className="w-4 h-4 border-2 border-mystic-gold/30 border-t-mystic-gold rounded-full animate-spin" />
-            ) : (
-              <>
-                <LogIn size={16} />
-                Acessar Minha Conta
-              </>
-            )}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loginLoading}
+              className="w-full py-2.5 rounded-lg bg-mystic-primary/30 hover:bg-mystic-primary/50 border border-mystic-primary/30 text-mystic-gold font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loginLoading ? (
+                <div className="w-4 h-4 border-2 border-mystic-gold/30 border-t-mystic-gold rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Send size={16} />
+                  Enviar Link de Acesso
+                </>
+              )}
+            </button>
+
+            <p className="text-xs text-gray-500 text-center">
+              Enviaremos um link de acesso para seu email
+            </p>
+          </form>
+        ) : (
+          <div className="text-center py-4">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <Check className="w-6 h-6 text-emerald-400" />
+            </div>
+            <h4 className="text-white font-bold mb-1">Link Enviado!</h4>
+            <p className="text-xs text-gray-400">
+              Verifique seu email <span className="text-mystic-gold">{loginEmail}</span> e clique no link para acessar sua conta.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
