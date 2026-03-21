@@ -8,56 +8,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Helper to create a JWT access token for a user
-async function createJWT(userId: string, userEmail: string): Promise<string> {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const jwtSecret = Deno.env.get('SUPABASE_JWT_SECRET') ?? '';
-
-  if (!jwtSecret) {
-    throw new Error('SUPABASE_JWT_SECRET is not configured');
-  }
-
-  // Extract project ID from URL for the aud claim
-  const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
-
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    sub: userId,
-    aud: projectId, // Use project ID as audience
-    exp: now + 3600, // 1 hour
-    iat: now,
-    email: userEmail,
-    role: 'authenticated',
-  };
-
-  const encodedHeader = encodeBase64Url(new TextEncoder().encode(JSON.stringify(header)));
-  const encodedPayload = encodeBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
-
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(jwtSecret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
-  );
-
-  const encodedSignature = encodeBase64Url(new Uint8Array(signature));
-  return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
-}
-
-// Helper to create a refresh token
-async function createRefreshToken(): Promise<string> {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return encodeBase64Url(bytes);
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -238,13 +188,39 @@ serve(async (req) => {
       }
     }
 
-    // 6. Generate JWT access token and refresh token
+    // 6. Generate a magic link and verify it immediately to get a session
+    // This DOES NOT send an email to the user.
     const userEmail = user?.email ?? email.toLowerCase();
-    console.log('Creating JWT for user:', userId, userEmail);
-    const accessToken = await createJWT(userId, userEmail);
-    console.log('JWT created successfully');
-    const refreshToken = await createRefreshToken();
-    const expiresAt = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+    console.log('Generating internal magic link for user:', userId, userEmail);
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: userEmail,
+      options: { 
+        // fallback to standard URL if PUBLIC_SITE_URL is missing
+        redirectTo: Deno.env.get('PUBLIC_SITE_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.supabase.co') || '' 
+      }
+    });
+
+    if (linkError) {
+      console.error('Error generating link:', linkError);
+      throw linkError;
+    }
+
+    // Immediately verify the OTP token hash to create a session
+    console.log('Verifying OTP token hash for instant login...');
+    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.verifyOtp({
+      token_hash: linkData.properties.token_hash,
+      type: 'magiclink',
+    });
+
+    if (sessionError) {
+      console.error('Error verifying OTP:', sessionError);
+      throw sessionError;
+    }
+
+    if (!sessionData.session) {
+      throw new Error('Could not create session for user');
+    }
 
     console.log('Login successful for user:', userEmail, 'isNewUser:', isNewUser);
 
@@ -252,14 +228,10 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       isNewUser,
-      user: {
-        id: userId,
-        email: userEmail,
-        full_name: customerData?.name || user?.user_metadata?.full_name || 'Assinante Premium',
-      },
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expires_at: expiresAt,
+      user: sessionData.user,
+      access_token: sessionData.session.access_token,
+      refresh_token: sessionData.session.refresh_token,
+      expires_at: sessionData.session.expires_at,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
