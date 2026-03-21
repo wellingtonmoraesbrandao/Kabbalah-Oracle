@@ -124,6 +124,7 @@ serve(async (req) => {
 
     // If no active subscription found in Stripe, return error
     if (!subscriptionStatus || !['active', 'trialing'].includes(subscriptionStatus)) {
+      console.error('No active subscription found. Customer:', customerData, 'Status:', subscriptionStatus);
       return new Response(JSON.stringify({ error: 'Nenhuma assinatura ativa encontrada para este email.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403,
