@@ -29,6 +29,7 @@ export const SubscriptionPlans: React.FC<{
   const [loginError, setLoginError] = useState('');
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
 
   useEffect(() => {
     fetchPrices();
@@ -89,27 +90,40 @@ export const SubscriptionPlans: React.FC<{
     setLoginError('');
     setLoginSuccess(false);
     setMagicLinkSent(false);
+    setIsCheckingSubscription(true);
 
     try {
-      // Check if user has active subscription first by calling our edge function
-      const { data, error } = await supabase.functions.invoke('check-subscription', {
-        body: { email: loginEmail.toLowerCase() }
-      });
+      // Try to check if user has active subscription
+      let hasActiveSubscription: boolean | null = null;
 
-      if (error) {
-        throw new Error('Erro ao verificar assinatura. Tente novamente.');
+      try {
+        const { data, error } = await supabase.functions.invoke('check-subscription', {
+          body: { email: loginEmail.toLowerCase() }
+        });
+
+        if (error) {
+          console.warn('Check subscription invoke error (will try magic link anyway):', error);
+          hasActiveSubscription = null; // Will try magic link anyway
+        } else if (data?.hasActiveSubscription === false) {
+          hasActiveSubscription = false;
+        } else if (data?.hasActiveSubscription === true) {
+          hasActiveSubscription = true;
+        }
+      } catch (checkErr) {
+        console.warn('Subscription check failed (will try magic link anyway):', checkErr);
+        hasActiveSubscription = null; // Will try magic link anyway
       }
 
-      if (data?.error) {
-        throw new Error(data.error);
+      setIsCheckingSubscription(false);
+
+      // If we confirmed no subscription, show error
+      if (hasActiveSubscription === false) {
+        setLoginError('Nenhuma assinatura ativa encontrada para este email. Assine primeiro!');
+        return;
       }
 
-      if (!data?.hasActiveSubscription) {
-        throw new Error('Nenhuma assinatura ativa encontrada para este email. Assine primeiro!');
-      }
-
-      // User has active subscription - send magic link for instant login
-      // The magic link will redirect back to the app and log them in
+      // Send magic link - this works for both confirmed subscribers and guests
+      // If they don't have subscription, they'll get an error after clicking the link
       const { error: signInError } = await supabase.auth.signInWithOtp({
         email: loginEmail.toLowerCase(),
         options: {
@@ -117,7 +131,15 @@ export const SubscriptionPlans: React.FC<{
         },
       });
 
-      if (signInError) throw signInError;
+      if (signInError) {
+        // Check if it's a "user not found" type error which is expected for non-subscribers
+        if (signInError.message.includes('not found') || signInError.message.includes('invite')) {
+          setLoginError('Você ainda não tem uma conta. Assine primeiro para criar sua conta!');
+        } else {
+          throw signInError;
+        }
+        return;
+      }
 
       // Show success message
       setMagicLinkSent(true);
@@ -129,41 +151,7 @@ export const SubscriptionPlans: React.FC<{
       setLoginError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoginLoading(false);
-    }
-  };
-
-  const handleGuestLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!loginEmail) {
-      setLoginError('Digite seu email');
-      return;
-    }
-
-    setLoginLoading(true);
-    setLoginError('');
-    setLoginSuccess(false);
-    setMagicLinkSent(false);
-
-    try {
-      // For guest users (no subscription), send magic link for newsletter/free content
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email: loginEmail.toLowerCase(),
-        options: {
-          emailRedirectTo: `${window.location.origin}/?welcome=true`,
-        },
-      });
-
-      if (signInError) throw signInError;
-
-      setMagicLinkSent(true);
-      setLoginSuccess(true);
-
-    } catch (err: any) {
-      console.error('Guest login error:', err);
-      setLoginError(err.message || 'Erro ao fazer login. Tente novamente.');
-    } finally {
-      setLoginLoading(false);
+      setIsCheckingSubscription(false);
     }
   };
 
@@ -280,7 +268,7 @@ export const SubscriptionPlans: React.FC<{
               ) : (
                 <>
                   <Send size={16} />
-                  Enviar Link de Acesso
+                  {isCheckingSubscription ? 'Verificando...' : 'Enviar Link de Acesso'}
                 </>
               )}
             </button>
