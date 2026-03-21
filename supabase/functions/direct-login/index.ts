@@ -12,6 +12,10 @@ const corsHeaders = {
 async function createJWT(userId: string, userEmail: string): Promise<string> {
   const jwtSecret = Deno.env.get('SUPABASE_JWT_SECRET') ?? '';
 
+  if (!jwtSecret) {
+    throw new Error('SUPABASE_JWT_SECRET is not configured in Edge Function environment');
+  }
+
   const header = { alg: 'HS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
   const payload = {
@@ -124,7 +128,7 @@ serve(async (req) => {
 
     // If no active subscription found in Stripe, return error
     if (!subscriptionStatus || !['active', 'trialing'].includes(subscriptionStatus)) {
-      console.error('No active subscription found. Customer:', customerData, 'Status:', subscriptionStatus);
+      console.error('No active subscription. Customer:', customerData, 'Status:', subscriptionStatus);
       return new Response(JSON.stringify({ error: 'Nenhuma assinatura ativa encontrada para este email.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403,
@@ -234,6 +238,8 @@ serve(async (req) => {
     const accessToken = await createJWT(userId, userEmail);
     const refreshToken = await createRefreshToken();
     const expiresAt = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+
+    console.log('Login successful for user:', userEmail, 'isNewUser:', isNewUser);
 
     // Return the session tokens so frontend can log in immediately
     return new Response(JSON.stringify({
