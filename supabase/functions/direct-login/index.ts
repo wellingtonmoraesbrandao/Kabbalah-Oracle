@@ -66,8 +66,10 @@ serve(async (req) => {
 
   try {
     const { email } = await req.json();
+    console.log('direct-login called with email:', email);
 
     if (!email) {
+      console.error('No email provided');
       return new Response(JSON.stringify({ error: 'Email is required' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,

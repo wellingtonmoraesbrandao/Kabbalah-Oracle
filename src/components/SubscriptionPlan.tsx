@@ -90,13 +90,35 @@ export const SubscriptionPlans: React.FC<{
 
     try {
       // Call direct-login edge function for instant login with JWT tokens
-      const { data, error } = await supabase.functions.invoke('direct-login', {
-        body: { email: loginEmail.toLowerCase() }
+      // Using fetch directly for better error visibility
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      console.log('Calling direct-login with email:', loginEmail.toLowerCase());
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/direct-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'apikey': supabaseAnonKey,
+        },
+        body: JSON.stringify({ email: loginEmail.toLowerCase() })
       });
 
-      if (error) {
-        console.error('Direct login invoke error:', error);
-        throw new Error('Erro ao conectar. Tente novamente.');
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        console.error('Failed to parse JSON response:', e);
+        throw new Error('Resposta inválida do servidor. Tente novamente.');
+      }
+
+      console.log('direct-login response:', { status: response.status, ok: response.ok, data });
+
+      if (!response.ok) {
+        console.error('Direct login HTTP error:', response.status, data);
+        throw new Error(data.error || `Erro do servidor (${response.status}). Tente novamente.`);
       }
 
       if (data?.error) {
