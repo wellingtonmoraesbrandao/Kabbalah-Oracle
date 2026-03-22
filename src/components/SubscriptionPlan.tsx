@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { createCheckoutSession, getSavedPremiumEmail, savePremiumEmail } from '../lib/stripe';
+import { trackInitiateCheckout, trackLead } from '../lib/metaPixel';
 import { Check, Sparkles, Mail, User, LogIn, AlertCircle, Send, Loader2 } from 'lucide-react';
 
 interface Price {
@@ -57,6 +58,18 @@ export const SubscriptionPlans: React.FC<{
   const handleSubscribe = async (priceId: string) => {
     const email = loginEmail || userEmail;
     if (email) savePremiumEmail(email);
+
+    // Find the selected plan to get details for tracking
+    const selectedPrice = prices.find(p => p.id === priceId);
+    const planName = selectedPrice?.products?.name || 'Premium Plan';
+    const planValue = selectedPrice?.unit_amount ? selectedPrice.unit_amount / 100 : 0;
+
+    // Track InitiateCheckout event
+    trackInitiateCheckout({
+      value: planValue,
+      plan_name: planName,
+      price_id: priceId,
+    });
 
     setSubscribing(priceId);
     try {
@@ -149,6 +162,11 @@ export const SubscriptionPlans: React.FC<{
 
       savePremiumEmail(loginEmail.toLowerCase());
       setLoginSuccess(true);
+
+      // Track Lead event - user has logged in
+      trackLead({
+        email: loginEmail.toLowerCase(),
+      });
 
       // Call success callback after a short delay
       setTimeout(() => {

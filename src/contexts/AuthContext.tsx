@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { trackPurchase } from '../lib/metaPixel';
 
 interface AuthContextType {
     session: Session | null;
@@ -44,6 +45,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
                     if (!error) {
                         console.log('Session set successfully from Stripe callback');
+
+                        // Track Purchase event - subscription was completed
+                        trackPurchase({
+                            value: 0, // Value will be retrieved from subscription if available
+                            customer_email: urlParams.get('email') || undefined,
+                        });
 
                         // Clear URL parameters after successful login
                         window.history.replaceState({}, '', window.location.pathname);
