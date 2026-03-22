@@ -1,0 +1,1 @@
+This directory is for PWA icons. Please add icon-192x192.png and icon-512x512.png.
