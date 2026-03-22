@@ -15,10 +15,6 @@
 @layer base {
   body {
     @apply text-slate-300 font-sans antialiased bg-[#10141a];
-    background-image: url('./assets/oracle_mystic_bg.jpeg');
-    background-attachment: fixed;
-    background-size: cover;
-    background-position: center;
   }
 }
 
